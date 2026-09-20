@@ -1,0 +1,15 @@
+{
+  "name": "lab-billing-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Offline-first Lab Billing Desktop Application and Licensing System",
+  "scripts": {
+    "dev": "pnpm --filter @lab/desktop dev",
+    "build": "pnpm --recursive run build",
+    "test": "pnpm --recursive run test",
+    "lint": "pnpm --recursive run lint"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3"
+  }
+}

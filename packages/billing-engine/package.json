@@ -1,0 +1,17 @@
+{
+  "name": "@lab/billing-engine",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc --build",
+    "test": "node --test dist/**/*.test.js || tsx --test tests/**/*.test.ts"
+  },
+  "dependencies": {
+    "@lab/shared-types": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3"
+  }
+}

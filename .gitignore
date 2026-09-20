@@ -1,0 +1,66 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Local databases
+*.db
+*.sqlite
+*.sqlite3
+*.db-shm
+*.db-wal
+
+# Backups / exports
+backups/
+backup/
+exports/
+
+# Build output
+dist/
+build/
+out/
+
+# Tauri / Rust
+**/src-tauri/target/
+target/
+
+# Logs
+*.log
+logs/
+
+# Test / coverage
+coverage/
+.nyc_output/
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+
+# IDE
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Local certificates / keys
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Tauri generated bundles
+**/src-tauri/target/release/bundle/
+
+# Local application data
+AppData/
+
+# TypeScript build info
+*.tsbuildinfo
