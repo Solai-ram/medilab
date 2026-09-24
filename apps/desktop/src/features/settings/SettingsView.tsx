@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { dbService } from '../../services/db';
-import { AppSettings, LicenseState } from '@lab/shared-types';
+import { dbService, DEFAULT_QUICK_TESTS, QUICK_COLOR_OPTIONS, getQuickTagClass } from '../../services/db';
+import { AppSettings, LicenseState, Procedure, QuickTestConfig } from '@lab/shared-types';
 import { useAuth } from '../auth/AuthContext';
 import {
   Settings,
@@ -21,6 +21,12 @@ import {
   Check,
   Eye,
   FileSignature,
+  Zap,
+  Plus,
+  Trash2,
+  ArrowUp,
+  ArrowDown,
+  RotateCcw,
 } from 'lucide-react';
 
 interface SettingsViewProps {
@@ -36,11 +42,73 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSettings
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
   const [restoreStatus, setRestoreStatus] = useState<string | null>(null);
   const [copiedFp, setCopiedFp] = useState(false);
-  const [activeTab, setActiveTab] = useState<'general' | 'billing' | 'backup' | 'license'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'billing' | 'quick' | 'backup' | 'license'>('general');
+
+  // Quick tests configuration state
+  const [procedures, setProcedures] = useState<Procedure[]>([]);
+  const [selectedProcCode, setSelectedProcCode] = useState('');
+  const [quickLabel, setQuickLabel] = useState('');
+  const [quickColor, setQuickColor] = useState('purple');
 
   useEffect(() => {
     dbService.getLicenseState().then(setLicense);
+    dbService.getProcedures().then(setProcedures);
   }, []);
+
+  // Ensure quickTests is initialized in form
+  const currentQuickList: QuickTestConfig[] = form.quickTests && form.quickTests.length > 0
+    ? form.quickTests
+    : DEFAULT_QUICK_TESTS;
+
+  const handleAddQuickTest = () => {
+    if (!selectedProcCode) return;
+    if (currentQuickList.some((t) => t.code === selectedProcCode)) {
+      setSaveStatus('This test is already in the quick palette.');
+      setTimeout(() => setSaveStatus(null), 3000);
+      return;
+    }
+    const proc = procedures.find((p) => p.code === selectedProcCode);
+    const label = quickLabel.trim() || proc?.name.split(' ')[0] || selectedProcCode;
+    const updated = [...currentQuickList, { code: selectedProcCode, label, color: quickColor }];
+    setForm({ ...form, quickTests: updated });
+    setSelectedProcCode('');
+    setQuickLabel('');
+    setQuickColor('purple');
+  };
+
+  const handleRemoveQuickTest = (code: string) => {
+    const updated = currentQuickList.filter((t) => t.code !== code);
+    setForm({ ...form, quickTests: updated });
+  };
+
+  const handleMoveQuickTest = (index: number, direction: -1 | 1) => {
+    const targetIdx = index + direction;
+    if (targetIdx < 0 || targetIdx >= currentQuickList.length) return;
+    const updated = [...currentQuickList];
+    const [moved] = updated.splice(index, 1);
+    updated.splice(targetIdx, 0, moved);
+    setForm({ ...form, quickTests: updated });
+  };
+
+  const handleUpdateQuickItem = (index: number, field: 'label' | 'color', value: string) => {
+    const updated = [...currentQuickList];
+    updated[index] = { ...updated[index], [field]: value };
+    setForm({ ...form, quickTests: updated });
+  };
+
+  const handleResetQuickDefaults = () => {
+    setForm({ ...form, quickTests: DEFAULT_QUICK_TESTS });
+    setSaveStatus('Quick tests reset to default recommended suite.');
+    setTimeout(() => setSaveStatus(null), 3000);
+  };
+
+  const handleSaveQuickTests = async () => {
+    if (!isAdmin) return;
+    const updated = await dbService.updateSettings({ ...form, quickTests: currentQuickList });
+    onSettingsUpdated(updated);
+    setSaveStatus('Quick tests bar successfully updated and saved!');
+    setTimeout(() => setSaveStatus(null), 3000);
+  };
 
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,6 +117,38 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSettings
     onSettingsUpdated(updated);
     setSaveStatus('Settings successfully saved to local database!');
     setTimeout(() => setSaveStatus(null), 3000);
+  };
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setSaveStatus('Please select a valid image file (PNG, JPG, SVG, WebP).');
+      setTimeout(() => setSaveStatus(null), 3500);
+      return;
+    }
+
+    if (file.size > 2.5 * 1024 * 1024) {
+      setSaveStatus('Image size exceeds 2.5MB. Please choose a smaller logo.');
+      setTimeout(() => setSaveStatus(null), 3500);
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64 = event.target?.result as string;
+      setForm((prev) => ({ ...prev, labLogo: base64 }));
+      setSaveStatus('Logo attached! Click "Save Lab Information" below to persist changes.');
+      setTimeout(() => setSaveStatus(null), 4000);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveLogo = () => {
+    setForm((prev) => ({ ...prev, labLogo: '' }));
+    setSaveStatus('Logo removed. Click "Save Lab Information" to persist changes.');
+    setTimeout(() => setSaveStatus(null), 3500);
   };
 
   const handleBackupNow = async () => {
@@ -128,6 +228,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSettings
         </button>
 
         <button
+          onClick={() => setActiveTab('quick')}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+            activeTab === 'quick' ? 'bg-teal-600 text-white shadow' : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          <Zap className="w-3.5 h-3.5 text-amber-400" />
+          <span>Quick Tests Setup</span>
+        </button>
+
+        <button
           onClick={() => setActiveTab('backup')}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
             activeTab === 'backup' ? 'bg-teal-600 text-white shadow' : 'text-slate-400 hover:text-white'
@@ -158,6 +268,56 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSettings
                 <Building2 className="w-4 h-4 text-teal-400" />
                 Laboratory Identity & Letterhead
               </h3>
+
+              {/* Attach Laboratory Logo */}
+              <div className="p-3.5 bg-slate-950/70 border border-slate-800 rounded-xl space-y-2.5">
+                <label className="block text-xs font-semibold text-slate-200">
+                  Laboratory Brand Logo
+                </label>
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-xl border border-dashed border-slate-700 bg-slate-900/90 flex items-center justify-center overflow-hidden flex-shrink-0 relative group">
+                    {form.labLogo ? (
+                      <img
+                        src={form.labLogo}
+                        alt="Lab Logo Preview"
+                        className="w-full h-full object-contain p-1"
+                      />
+                    ) : (
+                      <Building2 className="w-6 h-6 text-slate-600" />
+                    )}
+                  </div>
+
+                  <div className="flex-1 space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-600/20 border border-teal-500/40 text-teal-300 hover:bg-teal-600/30 text-xs font-semibold transition">
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>{form.labLogo ? 'Change Logo' : 'Attach Logo'}</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={handleLogoUpload}
+                          disabled={!isAdmin}
+                        />
+                      </label>
+                      {form.labLogo && isAdmin && (
+                        <button
+                          type="button"
+                          onClick={handleRemoveLogo}
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-rose-950/40 border border-rose-800/60 text-rose-400 hover:bg-rose-900/40 text-xs font-semibold transition"
+                          title="Remove attached logo"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Remove</span>
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-slate-400 leading-tight">
+                      Displays in software top header, 80mm thermal receipts, and A4 tax invoices. Max 2.5MB (PNG/JPG).
+                    </p>
+                  </div>
+                </div>
+              </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1">Laboratory Official Name *</label>
@@ -258,6 +418,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSettings
               </div>
 
               <div className="bg-white text-black p-4 rounded-xl shadow-md text-center font-sans">
+                {form.labLogo && (
+                  <div className="flex justify-center mb-2">
+                    <img
+                      src={form.labLogo}
+                      alt="Lab Logo Preview"
+                      className="max-h-12 max-w-[140px] object-contain"
+                    />
+                  </div>
+                )}
                 <div className="text-base font-extrabold text-teal-900 tracking-tight uppercase">
                   {form.labName || 'YOUR LAB NAME'}
                 </div>
@@ -336,7 +505,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSettings
                   min="1"
                   value={form.invoiceSequence}
                   onChange={(e) => setForm({ ...form, invoiceSequence: parseInt(e.target.value) || 1 })}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-teal-500"
+                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-teal-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden"
                 />
               </div>
             </div>
@@ -662,6 +831,267 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSettings
                   Activate Device
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+        {activeTab === 'quick' && (
+          <div className="space-y-5 animate-in fade-in duration-150">
+            {/* Top Live Preview of the Reception Billing Counter */}
+            <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-4 shadow-md space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Zap className="w-4 h-4 text-amber-400" />
+                  <h3 className="text-sm font-bold text-white">Live Reception Counter Preview</h3>
+                </div>
+                <span className="text-[11px] text-teal-400 font-mono font-semibold">
+                  {currentQuickList.length} test(s) in quick bar
+                </span>
+              </div>
+
+              {/* Exact Visual Replica of Reception Quick Bar */}
+              <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800/80 flex items-center gap-2 overflow-x-auto shadow-inner">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mr-1 flex items-center gap-1 shrink-0">
+                  <Zap className="w-3 h-3 text-amber-400" />
+                  Quick:
+                </span>
+                {currentQuickList.length === 0 ? (
+                  <span className="text-xs text-slate-500 italic">No quick tests configured. Add tests below.</span>
+                ) : (
+                  currentQuickList.map((t) => {
+                    const proc = procedures.find((p) => p.code === t.code);
+                    const tagClass = getQuickTagClass(t.color);
+                    return (
+                      <div
+                        key={t.code}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-semibold border whitespace-nowrap shadow-sm select-none ${tagClass}`}
+                      >
+                        <span>{t.label || proc?.name || t.code}</span>
+                        <span className="ml-1 opacity-75 font-mono text-[10px]">₹{proc?.price ?? 0}</span>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+              <p className="text-[11px] text-slate-400">
+                These buttons appear directly above the billing cart on the reception counter. Staff can click any chip to add the test instantly with zero typing.
+              </p>
+            </div>
+
+            {/* Add Investigation to Quick Palette */}
+            <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-4 shadow-md space-y-3">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <Plus className="w-4 h-4 text-teal-400" />
+                Add Test to Quick Palette
+              </h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                <div className="md:col-span-5">
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Select Diagnostic Investigation *
+                  </label>
+                  <select
+                    value={selectedProcCode}
+                    onChange={(e) => {
+                      const code = e.target.value;
+                      setSelectedProcCode(code);
+                      const proc = procedures.find((p) => p.code === code);
+                      if (proc) {
+                        setQuickLabel(proc.name.split(' ')[0]);
+                      }
+                    }}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500 shadow-inner font-medium"
+                  >
+                    <option value="">-- Choose from Procedure Master --</option>
+                    {procedures
+                      .filter((p) => p.status === 'ACTIVE')
+                      .map((p) => (
+                        <option key={p.id} value={p.code}>
+                          {p.code} - {p.name} (₹{p.price})
+                        </option>
+                      ))}
+                  </select>
+                </div>
+
+                <div className="md:col-span-3">
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Short Counter Button Label *
+                  </label>
+                  <input
+                    type="text"
+                    value={quickLabel}
+                    onChange={(e) => setQuickLabel(e.target.value)}
+                    placeholder="e.g. CBC, FBS, LFT"
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500 shadow-inner font-semibold"
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Specimen Color Accent
+                  </label>
+                  <select
+                    value={quickColor}
+                    onChange={(e) => setQuickColor(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500 shadow-inner font-medium"
+                  >
+                    {QUICK_COLOR_OPTIONS.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="md:col-span-2">
+                  <button
+                    type="button"
+                    onClick={handleAddQuickTest}
+                    disabled={!selectedProcCode}
+                    className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white font-bold text-xs shadow-md transition disabled:opacity-40 disabled:pointer-events-none"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add to Bar</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Configured Quick Tests Table */}
+            <div className="bg-slate-950/80 border border-slate-800 rounded-2xl overflow-hidden shadow-md">
+              <div className="p-3.5 border-b border-slate-800 flex items-center justify-between">
+                <h3 className="text-xs font-bold text-slate-200 uppercase tracking-wider">
+                  Configured Tests & Display Order
+                </h3>
+                <span className="text-[11px] text-slate-400">
+                  Use the arrows to adjust button sequence on the counter
+                </span>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-800 bg-slate-900/80 text-[11px] font-mono uppercase tracking-wider text-slate-400">
+                      <th className="py-2.5 px-3 w-20 text-center">Order</th>
+                      <th className="py-2.5 px-3">Test Code & Name</th>
+                      <th className="py-2.5 px-3 w-44">Counter Label</th>
+                      <th className="py-2.5 px-3 w-44">Specimen Accent</th>
+                      <th className="py-2.5 px-3 text-right w-24">Tariff</th>
+                      <th className="py-2.5 px-3 text-center w-36">Live Chip</th>
+                      <th className="py-2.5 px-3 text-center w-16">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60">
+                    {currentQuickList.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="py-8 text-center text-slate-500 italic">
+                          No quick tests configured. Choose an investigation above to add it.
+                        </td>
+                      </tr>
+                    ) : (
+                      currentQuickList.map((item, idx) => {
+                        const proc = procedures.find((p) => p.code === item.code);
+                        const tagClass = getQuickTagClass(item.color);
+                        return (
+                          <tr key={item.code} className="hover:bg-slate-900/60 transition">
+                            <td className="py-2.5 px-3 text-center">
+                              <div className="flex items-center justify-center gap-1">
+                                <button
+                                  type="button"
+                                  disabled={idx === 0}
+                                  onClick={() => handleMoveQuickTest(idx, -1)}
+                                  className="p-1 rounded bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white disabled:opacity-20 transition"
+                                  title="Move Up"
+                                >
+                                  <ArrowUp className="w-3 h-3" />
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={idx === currentQuickList.length - 1}
+                                  onClick={() => handleMoveQuickTest(idx, 1)}
+                                  className="p-1 rounded bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white disabled:opacity-20 transition"
+                                  title="Move Down"
+                                >
+                                  <ArrowDown className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </td>
+                            <td className="py-2.5 px-3">
+                              <div className="font-bold text-white flex items-center gap-2">
+                                <span className="font-mono text-teal-400 font-semibold">{item.code}</span>
+                                <span>{proc?.name || item.label}</span>
+                              </div>
+                              <div className="text-[11px] text-slate-400">
+                                {proc?.categoryName || 'Diagnostic Investigation'}
+                              </div>
+                            </td>
+                            <td className="py-2.5 px-3">
+                              <input
+                                type="text"
+                                value={item.label}
+                                onChange={(e) => handleUpdateQuickItem(idx, 'label', e.target.value)}
+                                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white focus:outline-none focus:border-teal-500 font-semibold shadow-inner"
+                              />
+                            </td>
+                            <td className="py-2.5 px-3">
+                              <select
+                                value={item.color || 'purple'}
+                                onChange={(e) => handleUpdateQuickItem(idx, 'color', e.target.value)}
+                                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white focus:outline-none focus:border-teal-500 shadow-inner"
+                              >
+                                {QUICK_COLOR_OPTIONS.map((c) => (
+                                  <option key={c.id} value={c.id}>
+                                    {c.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </td>
+                            <td className="py-2.5 px-3 text-right font-mono font-bold text-teal-400">
+                              ₹{proc?.price ?? 0}
+                            </td>
+                            <td className="py-2.5 px-3 text-center">
+                              <span className={`inline-block px-2.5 py-1 rounded-lg text-xs font-semibold border shadow-sm ${tagClass}`}>
+                                <span>{item.label}</span>
+                                <span className="ml-1 opacity-75 font-mono text-[10px]">₹{proc?.price ?? 0}</span>
+                              </span>
+                            </td>
+                            <td className="py-2.5 px-3 text-center">
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveQuickTest(item.code)}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-950/40 transition"
+                                title="Remove from Quick Bar"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Bottom Action Controls */}
+            <div className="flex items-center justify-between pt-2">
+              <button
+                type="button"
+                onClick={handleResetQuickDefaults}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs font-semibold border border-slate-700 transition"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Reset to Recommended Defaults</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSaveQuickTests}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white text-xs font-bold shadow-lg shadow-teal-950/60 transition duration-150 transform hover:scale-[1.01] active:scale-[0.99]"
+              >
+                <Save className="w-4 h-4" />
+                <span>Save Quick Tests Bar</span>
+              </button>
             </div>
           </div>
         )}

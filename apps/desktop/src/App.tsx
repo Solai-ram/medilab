@@ -5,7 +5,6 @@ import { useAuth } from './features/auth/AuthContext';
 import { LoginScreen } from './features/auth/LoginScreen';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
-import { FooterShortcuts } from './components/FooterShortcuts';
 import { BillingView } from './features/billing/BillingView';
 import { BillingActivityView } from './features/activity/BillingActivityView';
 import { PatientsView } from './features/patients/PatientsView';
@@ -31,38 +30,6 @@ export const App: React.FC = () => {
     localStorage.setItem('medilab-sidebar-open', String(isSidebarOpen));
   }, [isSidebarOpen]);
 
-  // Global key navigation for F2, F4, F6 and Ctrl+B
-  useEffect(() => {
-    const handleGlobalKeys = (e: KeyboardEvent) => {
-      // If unauthenticated, do not handle workstation shortcuts
-      if (!user) return;
-
-      // Ctrl+B / Cmd+B: Toggle Sidebar Menu
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
-        e.preventDefault();
-        setIsSidebarOpen((prev) => !prev);
-        return;
-      }
-
-      if (e.key === 'F2') {
-        setCurrentTab('billing');
-      } else if (e.key === 'F4') {
-        // If in billing, keep in billing to focus patient; if elsewhere, open patients view
-        if (currentTab !== 'billing') {
-          setCurrentTab('patients');
-        }
-      } else if (e.key === 'F6') {
-        if (currentTab !== 'billing') {
-          setCurrentTab('procedures');
-        }
-      } else if (e.key === 'F8') {
-        setCurrentTab('activity');
-      }
-    };
-    window.addEventListener('keydown', handleGlobalKeys);
-    return () => window.removeEventListener('keydown', handleGlobalKeys);
-  }, [currentTab, user]);
-
   if (!settings || isAuthLoading) {
     return (
       <div className="h-screen w-screen flex items-center justify-center bg-slate-950 text-teal-400 font-mono text-sm">
@@ -83,6 +50,7 @@ export const App: React.FC = () => {
         currentTab={currentTab}
         onTabChange={setCurrentTab}
         labName={settings.labName}
+        logoUrl={settings.labLogo}
       />
 
       {/* Body Container: Collapsible Sidebar + Active Module View */}
@@ -127,10 +95,8 @@ export const App: React.FC = () => {
           )}
         </main>
       </div>
-
-      {/* Keyboard Shortcuts Bottom Bar */}
-      <FooterShortcuts />
     </div>
   );
 };
+
 

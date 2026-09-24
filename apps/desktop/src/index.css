@@ -9,6 +9,18 @@
     user-select: none;
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
   }
+
+  /* Remove spin buttons / arrows on all number inputs */
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
 }
 
 @layer utilities {
@@ -125,6 +137,12 @@ html.light .calendar-picker-popover .text-white {
   color: #0f172a !important;
 }
 
+/* Ensure selected day button with gradient retains crisp white text */
+html.light .calendar-picker-popover button.bg-gradient-to-r,
+html.light .calendar-picker-popover button.bg-gradient-to-r * {
+  color: #ffffff !important;
+}
+
 html.light .calendar-picker-popover .text-slate-400 {
   color: #64748b !important;
 }
@@ -209,6 +227,11 @@ html.light .text-teal-300 {
   color: #0f766e !important;
 }
 
+html.light .text-teal-200,
+html.light .text-teal-100 {
+  color: #134e4a !important;
+}
+
 html.light .text-emerald-400 {
   color: #059669 !important;
 }
@@ -217,12 +240,24 @@ html.light .text-emerald-300 {
   color: #047857 !important;
 }
 
+html.light .text-emerald-200 {
+  color: #065f46 !important;
+}
+
 html.light .text-sky-400 {
   color: #0284c7 !important;
 }
 
 html.light .text-sky-300 {
   color: #0369a1 !important;
+}
+
+html.light .text-blue-400 {
+  color: #2563eb !important;
+}
+
+html.light .text-blue-300 {
+  color: #1d4ed8 !important;
 }
 
 html.light .text-purple-400 {
@@ -235,6 +270,32 @@ html.light .text-purple-300 {
 
 html.light .text-amber-400 {
   color: #d97706 !important;
+}
+
+html.light .text-amber-300,
+html.light .text-amber-200 {
+  color: #b45309 !important;
+}
+
+html.light .text-rose-400 {
+  color: #e11d48 !important;
+}
+
+html.light .text-rose-300,
+html.light .text-rose-200 {
+  color: #be123c !important;
+}
+
+/* Gradient Text Fallback in Light Mode to prevent invisible white text on white backgrounds */
+html.light .text-transparent.bg-clip-text {
+  background: none !important;
+  -webkit-text-fill-color: #0f766e !important;
+  color: #0f766e !important;
+}
+
+html.light header .text-transparent.bg-clip-text {
+  -webkit-text-fill-color: #0f172a !important;
+  color: #0f172a !important;
 }
 
 /* Form Controls & Inputs in Light Mode */
@@ -251,6 +312,11 @@ html.light select {
   box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
 }
 
+html.light select option {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
 html.light input::placeholder,
 html.light textarea::placeholder {
   color: #94a3b8 !important;
@@ -263,16 +329,45 @@ html.light select:focus {
   box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.15) !important;
 }
 
-/* Buttons with white text preserved in Light Mode */
+/* Buttons & Badges with white text preserved in Light Mode */
 html.light button.bg-gradient-to-r,
 html.light button.bg-gradient-to-r *,
+html.light button.bg-gradient-to-b,
+html.light button.bg-gradient-to-b *,
+html.light .bg-gradient-to-r.text-white,
+html.light .bg-gradient-to-b.text-white,
+html.light button.bg-teal-600,
+html.light button.bg-teal-600 *,
 html.light .bg-teal-600,
 html.light .bg-teal-600 *,
+html.light .bg-teal-500,
+html.light .bg-teal-500 *,
+html.light button.bg-rose-600,
+html.light button.bg-rose-600 *,
 html.light .bg-rose-600,
 html.light .bg-rose-600 *,
+html.light .bg-rose-500,
+html.light .bg-rose-500 *,
+html.light button.bg-emerald-600,
+html.light button.bg-emerald-600 *,
 html.light .bg-emerald-600,
-html.light .bg-emerald-600 * {
+html.light .bg-emerald-600 *,
+html.light .bg-emerald-500,
+html.light .bg-emerald-500 * {
   color: #ffffff !important;
+}
+
+/* Counter & Category Pill inside active button */
+html.light button.bg-gradient-to-r .bg-slate-950\/60,
+html.light button.bg-gradient-to-r .bg-slate-950\/80 {
+  background-color: rgba(13, 148, 136, 0.4) !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.25) !important;
+}
+
+/* Sublabel in Active Sidebar Item maintains hierarchy */
+html.light .sidebar-panel button.bg-gradient-to-r .text-teal-100\/90 {
+  color: rgba(204, 251, 241, 0.95) !important;
 }
 
 html.light button.bg-slate-800 {
@@ -282,6 +377,19 @@ html.light button.bg-slate-800 {
 }
 
 html.light button.bg-slate-800:hover {
+  background-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+/* Fix table and inline buttons dark flash on hover */
+html.light .hover\:bg-slate-800:hover,
+html.light .hover\:bg-slate-800\/80:hover,
+html.light .hover\:bg-slate-800\/60:hover,
+html.light .hover\:bg-slate-800\/40:hover {
+  background-color: #f1f5f9 !important;
+}
+
+html.light button.hover\:bg-slate-800:hover {
   background-color: #e2e8f0 !important;
   color: #0f172a !important;
 }
@@ -316,8 +424,11 @@ html.light .bg-gradient-to-br.from-teal-950\/70 .text-transparent {
 /* Specimen & Status Badges */
 html.light .bg-teal-950,
 html.light .bg-teal-950\/80,
+html.light .bg-teal-950\/70,
 html.light .bg-teal-950\/60,
-html.light .bg-teal-950\/50 {
+html.light .bg-teal-950\/50,
+html.light .bg-teal-950\/40,
+html.light .bg-teal-950\/30 {
   background-color: #f0fdfa !important;
   border-color: #ccfbf1 !important;
   color: #0f766e !important;
@@ -325,15 +436,20 @@ html.light .bg-teal-950\/50 {
 
 html.light .bg-emerald-950,
 html.light .bg-emerald-950\/80,
-html.light .bg-emerald-950\/60 {
+html.light .bg-emerald-950\/70,
+html.light .bg-emerald-950\/60,
+html.light .bg-emerald-950\/40,
+html.light .bg-emerald-950\/30 {
   background-color: #ecfdf5 !important;
   border-color: #d1fae5 !important;
   color: #047857 !important;
 }
 
 html.light .bg-purple-950,
+html.light .bg-purple-950\/80,
 html.light .bg-purple-950\/70,
-html.light .bg-purple-950\/60 {
+html.light .bg-purple-950\/60,
+html.light .bg-purple-950\/40 {
   background-color: #faf5ff !important;
   border-color: #f3e8ff !important;
   color: #7e22ce !important;
@@ -342,25 +458,42 @@ html.light .bg-purple-950\/60 {
 html.light .bg-rose-950,
 html.light .bg-rose-950\/80,
 html.light .bg-rose-950\/70,
-html.light .bg-rose-950\/60 {
+html.light .bg-rose-950\/60,
+html.light .bg-rose-950\/40,
+html.light .bg-rose-950\/30,
+html.light .bg-rose-950\/15 {
   background-color: #fff1f2 !important;
   border-color: #ffe4e6 !important;
   color: #be123c !important;
 }
 
 html.light .bg-amber-950,
+html.light .bg-amber-950\/80,
 html.light .bg-amber-950\/70,
-html.light .bg-amber-950\/60 {
+html.light .bg-amber-950\/60,
+html.light .bg-amber-950\/40,
+html.light .bg-amber-950\/30 {
   background-color: #fffbeb !important;
   border-color: #fef3c7 !important;
   color: #b45309 !important;
 }
 
 html.light .bg-sky-950,
-html.light .bg-sky-950\/80 {
+html.light .bg-sky-950\/80,
+html.light .bg-sky-950\/70,
+html.light .bg-sky-950\/60 {
   background-color: #f0f9ff !important;
   border-color: #e0f2fe !important;
   color: #0369a1 !important;
+}
+
+html.light .bg-blue-950,
+html.light .bg-blue-950\/80,
+html.light .bg-blue-950\/70,
+html.light .bg-blue-950\/60 {
+  background-color: #eff6ff !important;
+  border-color: #dbeafe !important;
+  color: #1d4ed8 !important;
 }
 
 /* Keyboard Badges */
@@ -420,3 +553,27 @@ html.light ::-webkit-scrollbar-thumb:hover {
   }
 }
 
+/* =========================================================
+   UNIVERSAL REMOVAL OF NUMBER INPUT STEPPER ARROWS
+   Ensures Chrome, Edge, WebView2, Safari, and Firefox NEVER
+   display up/down spin buttons on number fields anywhere.
+   ========================================================= */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button,
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+  display: none !important;
+  margin: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+input[type="number"],
+input[type="number"]:focus,
+input[type="number"]:hover {
+  -moz-appearance: textfield !important;
+  appearance: textfield !important;
+}

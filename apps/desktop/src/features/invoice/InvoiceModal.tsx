@@ -152,6 +152,15 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
 
               {/* Thermal Receipt Header */}
               <div className="text-center pb-2.5 border-b border-dashed border-gray-400">
+                {settings.labLogo && (
+                  <div className="flex justify-center mb-1.5">
+                    <img
+                      src={settings.labLogo}
+                      alt={settings.labName}
+                      className="max-h-12 max-w-[140px] object-contain"
+                    />
+                  </div>
+                )}
                 <div className="font-extrabold text-base tracking-wide uppercase">{settings.labName}</div>
                 {settings.labTagline && <div className="text-[10px] italic text-gray-700">{settings.labTagline}</div>}
                 <div className="text-[10px] mt-1">{settings.labAddress}</div>
@@ -272,14 +281,25 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
 
               {/* Prestigious Letterhead Header */}
               <div className="flex justify-between items-start pb-5 border-b-2 border-teal-600">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-2xl font-extrabold text-teal-900 tracking-tight">{settings.labName}</span>
+                <div className="flex items-start gap-4">
+                  {settings.labLogo && (
+                    <div className="w-20 h-20 p-1 border border-teal-100 rounded-xl bg-white flex items-center justify-center flex-shrink-0 shadow-sm">
+                      <img
+                        src={settings.labLogo}
+                        alt={settings.labName}
+                        className="max-h-full max-w-full object-contain"
+                      />
+                    </div>
+                  )}
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-2xl font-extrabold text-teal-900 tracking-tight">{settings.labName}</span>
+                    </div>
+                    {settings.labTagline && <p className="text-xs text-teal-600 font-semibold mt-0.5">{settings.labTagline}</p>}
+                    <p className="text-xs text-gray-600 mt-2 max-w-md leading-relaxed">{settings.labAddress}</p>
+                    <p className="text-xs text-gray-600">Ph: <b className="text-gray-900">{settings.labPhone}</b> | Email: {settings.labEmail}</p>
+                    {settings.labGstin && <p className="text-xs text-gray-700 font-mono mt-0.5">GSTIN: {settings.labGstin}</p>}
                   </div>
-                  {settings.labTagline && <p className="text-xs text-teal-600 font-semibold mt-0.5">{settings.labTagline}</p>}
-                  <p className="text-xs text-gray-600 mt-2 max-w-md leading-relaxed">{settings.labAddress}</p>
-                  <p className="text-xs text-gray-600">Ph: <b className="text-gray-900">{settings.labPhone}</b> | Email: {settings.labEmail}</p>
-                  {settings.labGstin && <p className="text-xs text-gray-700 font-mono mt-0.5">GSTIN: {settings.labGstin}</p>}
                 </div>
 
                 <div className="text-right">

@@ -1,6 +1,7 @@
 import { LicenseState, LicenseTokenPayload } from '@lab/shared-types';
 
-const LICENSE_API_URL = 'http://localhost:4000/api/v1/licenses';
+const RAW_API_URL = (import.meta as any).env?.VITE_LICENSE_API_URL || 'http://localhost:4000';
+const LICENSE_API_URL = `${RAW_API_URL.replace(/\/$/, '')}/api/v1/licenses`;
 
 /**
  * Computes a deterministic client device fingerprint from browser/hardware attributes.

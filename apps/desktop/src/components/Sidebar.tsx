@@ -37,7 +37,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       label: 'Billing Desk',
       sublabel: 'Counter POS & Checkout',
       icon: FileText,
-      shortcut: 'F2',
       section: 'MAIN WORKFLOW',
     },
     {
@@ -45,7 +44,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       label: 'Billing Activity',
       sublabel: 'Invoices & Daily Logs',
       icon: Receipt,
-      shortcut: 'F8',
       section: 'MAIN WORKFLOW',
     },
     {
@@ -53,7 +51,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       label: 'Patient Registry',
       sublabel: 'Profiles & Visit History',
       icon: Users,
-      shortcut: 'F4',
       section: 'MAIN WORKFLOW',
     },
     {
@@ -61,7 +58,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       label: 'Diagnostic Tests',
       sublabel: 'Test Master & Catalogs',
       icon: TestTubes,
-      shortcut: 'F6',
       section: 'MAIN WORKFLOW',
     },
     {
@@ -69,7 +65,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       label: 'Revenue Analytics',
       sublabel: 'Collections & Summaries',
       icon: BarChart3,
-      shortcut: null,
       section: 'MANAGEMENT',
     },
     {
@@ -77,7 +72,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       label: 'System Settings',
       sublabel: 'Clinic Header & Numbering',
       icon: Settings,
-      shortcut: null,
       section: 'MANAGEMENT',
     },
   ];
@@ -90,19 +84,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
         }`}
         style={{ willChange: 'width' }}
       >
-        {/* Top Header of Sidebar */}
-        <div className="h-16 px-3 border-b border-slate-800/80 flex items-center bg-slate-950/90 shrink-0">
+        {/* Top Header of Sidebar - aligned with main header */}
+        <div className="h-14 px-3 border-b border-slate-800/80 flex items-center bg-slate-950/90 shrink-0">
           {isOpen ? (
             <div className="w-full flex items-center justify-between">
               <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-8 h-8 rounded-lg bg-teal-500/10 border border-teal-500/30 flex items-center justify-center text-teal-400 shrink-0">
-                  <Sparkles className="w-4 h-4 text-teal-400" />
+                <div className="w-7 h-7 rounded-lg bg-teal-500/10 border border-teal-500/30 flex items-center justify-center text-teal-400 shrink-0">
+                  <Sparkles className="w-3.5 h-3.5 text-teal-400" />
                 </div>
                 <div>
                   <div className="text-xs font-bold text-slate-100 uppercase tracking-wider">
                     Menu
                   </div>
-                  <div className="text-[10px] text-teal-400/90 font-mono">Navigation</div>
                 </div>
               </div>
 
@@ -110,7 +103,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 type="button"
                 onClick={onToggle}
                 className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/80 transition group"
-                title="Collapse Sidebar (Ctrl+B)"
+                title="Collapse Sidebar"
               >
                 <PanelLeftClose className="w-4 h-4 group-hover:scale-110 transition duration-150 text-slate-400 group-hover:text-teal-400" />
               </button>
@@ -119,8 +112,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <button
               type="button"
               onClick={onToggle}
-              className="w-10 h-10 mx-auto rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-800 text-teal-400 hover:text-teal-300 flex items-center justify-center transition-all duration-150 group shadow-sm"
-              title="Expand Sidebar (Ctrl+B)"
+              className="w-9 h-9 mx-auto rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-800 text-teal-400 hover:text-teal-300 flex items-center justify-center transition-all duration-150 group shadow-sm"
+              title="Expand Sidebar"
             >
               <PanelLeftOpen className="w-4 h-4 group-hover:scale-110 transition duration-150" />
             </button>
@@ -128,7 +121,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Navigation Items */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden py-4 px-2 space-y-3">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden py-3 px-2 space-y-3">
           {isOpen ? (
             /* Expanded Full Navigation */
             <>
@@ -176,18 +169,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                               </div>
                             </div>
                           </div>
-
-                          {item.shortcut && (
-                            <span
-                              className={`text-[10px] font-mono px-1.5 py-0.5 rounded font-bold transition ${
-                                isActive
-                                  ? 'bg-teal-700/80 text-white'
-                                  : 'bg-slate-900 text-slate-400 group-hover:text-slate-200 border border-slate-800'
-                              }`}
-                            >
-                              {item.shortcut}
-                            </span>
-                          )}
                         </button>
                       );
                     })}
@@ -261,7 +242,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           ? 'bg-gradient-to-r from-teal-600 to-teal-500 text-white shadow-md shadow-teal-950/60 ring-1 ring-teal-400/40'
                           : 'text-slate-400 hover:text-white hover:bg-slate-900 border border-transparent hover:border-slate-800'
                       }`}
-                      title={`${item.label} (${item.shortcut}) - ${item.sublabel}`}
+                      title={`${item.label} - ${item.sublabel}`}
                     >
                       <Icon className="w-5 h-5 transition-transform duration-150 group-hover:scale-110" />
                     </button>

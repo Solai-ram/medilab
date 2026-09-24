@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { dbService } from '../../services/db';
-import { Procedure, ProcedureCategory, CreateProcedureInput } from '@lab/shared-types';
+import { Procedure, ProcedureCategory, CreateProcedureInput, QuickTestConfig } from '@lab/shared-types';
 import { formatCurrency } from '@lab/billing-engine';
 import { useAuth } from '../auth/AuthContext';
 import {
@@ -20,6 +20,7 @@ import {
   Trash2,
   Check,
   AlertCircle,
+  Zap,
 } from 'lucide-react';
 
 export const ProceduresView: React.FC = () => {
@@ -52,17 +53,24 @@ export const ProceduresView: React.FC = () => {
   const [isCreatingInlineDept, setIsCreatingInlineDept] = useState(false);
   const [inlineDeptName, setInlineDeptName] = useState('');
 
+  // Quick tests bar state
+  const [quickTests, setQuickTests] = useState<QuickTestConfig[]>([]);
+  const [isQuickTest, setIsQuickTest] = useState(false);
+  const [quickLabel, setQuickLabel] = useState('');
+
   useEffect(() => {
     loadData();
   }, []);
 
   const loadData = async () => {
-    const [procs, cats] = await Promise.all([
+    const [procs, cats, settings] = await Promise.all([
       dbService.getProcedures(),
       dbService.getCategories(),
+      dbService.getSettings(),
     ]);
     setProcedures(procs);
     setCategories(cats);
+    setQuickTests(settings.quickTests || []);
     if (cats.length > 0 && !categoryId) {
       setCategoryId(cats[0].id);
     }
@@ -96,6 +104,8 @@ export const ProceduresView: React.FC = () => {
     setSampleType('Serum');
     setDepartment('Biochemistry');
     setPrice('');
+    setIsQuickTest(false);
+    setQuickLabel('');
     setShowModal(true);
   };
 
@@ -107,6 +117,9 @@ export const ProceduresView: React.FC = () => {
     setSampleType(proc.sampleType || '');
     setDepartment(proc.department || '');
     setPrice(proc.price.toString());
+    const qItem = quickTests.find((q) => q.code === proc.code);
+    setIsQuickTest(!!qItem);
+    setQuickLabel(qItem?.label || proc.name.split(' ')[0]);
     setShowModal(true);
   };
 
@@ -123,6 +136,22 @@ export const ProceduresView: React.FC = () => {
       department,
       price: parseFloat(price) || 0,
     });
+
+    // Update Quick Tests configuration if toggled
+    if (isQuickTest) {
+      if (!quickTests.some((q) => q.code === code)) {
+        const updated = [...quickTests, { code, label: quickLabel.trim() || name.split(' ')[0], color: 'purple' }];
+        await dbService.updateQuickTests(updated);
+      } else {
+        const updated = quickTests.map((q) => q.code === code ? { ...q, label: quickLabel.trim() || q.label } : q);
+        await dbService.updateQuickTests(updated);
+      }
+    } else {
+      if (quickTests.some((q) => q.code === code)) {
+        const updated = quickTests.filter((q) => q.code !== code);
+        await dbService.updateQuickTests(updated);
+      }
+    }
 
     await loadData();
     setShowModal(false);
@@ -342,7 +371,16 @@ export const ProceduresView: React.FC = () => {
                 filteredProcedures.map((proc) => (
                   <tr key={proc.id} className="hover:bg-slate-800/60 transition">
                     <td className="py-3 px-4 font-mono font-bold text-teal-400">{proc.code}</td>
-                    <td className="py-3 px-4 font-bold text-slate-100">{proc.name}</td>
+                    <td className="py-3 px-4 font-bold text-slate-100">
+                      <div className="flex items-center gap-2">
+                        <span>{proc.name}</span>
+                        {quickTests.some((q) => q.code === proc.code) && (
+                          <span className="text-[9px] px-1.5 py-0.2 bg-amber-950/80 text-amber-300 border border-amber-800 rounded font-bold uppercase flex items-center gap-0.5">
+                            <Zap className="w-2.5 h-2.5" /> Quick
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td className="py-3 px-4 text-slate-300 font-medium">
                       <span className="px-2 py-0.5 rounded-lg bg-slate-950 border border-slate-800">
                         {proc.categoryName}
@@ -446,7 +484,7 @@ export const ProceduresView: React.FC = () => {
                     value={price}
                     onChange={(e) => setPrice(e.target.value)}
                     placeholder="e.g. 350.00"
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white font-mono focus:outline-none focus:border-teal-500 shadow-inner font-bold"
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white font-mono focus:outline-none focus:border-teal-500 shadow-inner font-bold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden"
                   />
                 </div>
               </div>
@@ -562,6 +600,36 @@ export const ProceduresView: React.FC = () => {
                       {s.label}
                     </button>
                   ))}
+                </div>
+              </div>
+
+              {/* Quick Test Bar Toggle */}
+              <div className="p-3 bg-slate-950/90 border border-slate-800 rounded-xl flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-lg bg-amber-950/80 border border-amber-800/80 flex items-center justify-center text-amber-400">
+                    <Zap className="w-3.5 h-3.5" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-slate-200">Show on Reception Quick Billing Bar</div>
+                    <div className="text-[10px] text-slate-400">Presents as an instant 1-click test button above the cart</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {isQuickTest && (
+                    <input
+                      type="text"
+                      value={quickLabel}
+                      onChange={(e) => setQuickLabel(e.target.value)}
+                      placeholder="Short label"
+                      className="w-24 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-xs text-white placeholder-slate-500 font-semibold"
+                    />
+                  )}
+                  <input
+                    type="checkbox"
+                    checked={isQuickTest}
+                    onChange={(e) => setIsQuickTest(e.target.checked)}
+                    className="w-4 h-4 accent-teal-500 rounded cursor-pointer"
+                  />
                 </div>
               </div>
 

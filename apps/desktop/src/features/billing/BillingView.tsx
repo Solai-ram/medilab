@@ -53,17 +53,7 @@ interface BillingViewProps {
   onViewAllActivity?: () => void;
 }
 
-// Popular Quick-Add Tests for fast lab receptionists with Specimen Color Accents
-const QUICK_TESTS = [
-  { code: 'CBC001', label: 'CBC', name: 'Complete Blood Count (CBC)', price: 350, cat: 'Hematology', specimen: 'EDTA Blood', tagColor: 'bg-purple-950/70 border-purple-800 text-purple-300 hover:border-purple-600' },
-  { code: 'LFT001', label: 'LFT', name: 'Liver Function Test (LFT)', price: 650, cat: 'Biochemistry', specimen: 'Serum', tagColor: 'bg-rose-950/70 border-rose-800 text-rose-300 hover:border-rose-600' },
-  { code: 'KFT001', label: 'KFT / RFT', name: 'Kidney Function Test', price: 600, cat: 'Biochemistry', specimen: 'Serum', tagColor: 'bg-rose-950/70 border-rose-800 text-rose-300 hover:border-rose-600' },
-  { code: 'LIP001', label: 'Lipid Profile', name: 'Lipid Profile', price: 550, cat: 'Biochemistry', specimen: 'Serum', tagColor: 'bg-amber-950/70 border-amber-800 text-amber-300 hover:border-amber-600' },
-  { code: 'TSH001', label: 'TSH', name: 'Thyroid Stimulating Hormone', price: 300, cat: 'Hormones', specimen: 'Serum', tagColor: 'bg-teal-950/70 border-teal-800 text-teal-300 hover:border-teal-600' },
-  { code: 'GLU001', label: 'FBS Sugar', name: 'Fasting Blood Sugar (FBS)', price: 80, cat: 'Biochemistry', specimen: 'Fluoride Plasma', tagColor: 'bg-slate-800 border-slate-700 text-slate-300 hover:border-slate-500' },
-  { code: 'HBA001', label: 'HbA1c', name: 'Glycated Hemoglobin', price: 450, cat: 'Biochemistry', specimen: 'EDTA Blood', tagColor: 'bg-purple-950/70 border-purple-800 text-purple-300 hover:border-purple-600' },
-  { code: 'URN001', label: 'Urine Routine', name: 'Urine Routine & Microscopic', price: 150, cat: 'Pathology', specimen: 'Spot Urine', tagColor: 'bg-blue-950/70 border-blue-800 text-blue-300 hover:border-blue-600' },
-];
+import { DEFAULT_QUICK_TESTS, getQuickTagClass } from '../../services/db';
 
 export const BillingView: React.FC<BillingViewProps> = ({ settings, initialPatient, onViewAllActivity }) => {
   const { user, isAdmin } = useAuth();
@@ -181,32 +171,17 @@ export const BillingView: React.FC<BillingViewProps> = ({ settings, initialPatie
     }
   }, [calcSummary.grandTotal, settings.labName]);
 
-  // Keyboard Shortcuts Handler
+  // Escape key to dismiss dropdowns
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'F2') {
-        e.preventDefault();
-        handleResetForm();
-      } else if (e.key === 'F4') {
-        e.preventDefault();
-        patientInputRef.current?.focus();
-      } else if (e.key === 'F6') {
-        e.preventDefault();
-        procedureInputRef.current?.focus();
-      } else if (e.ctrlKey && e.key.toLowerCase() === 's') {
-        e.preventDefault();
-        handleSaveBill(false);
-      } else if (e.ctrlKey && e.key.toLowerCase() === 'p') {
-        e.preventDefault();
-        handleSaveBill(true);
-      } else if (e.key === 'Escape') {
+      if (e.key === 'Escape') {
         setPatientResults([]);
         setProcedureResults([]);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedPatient, cart, paymentMode, paidAmount, paymentRef, billDiscount]);
+  }, []);
 
   // Cart operations
   const handleAddProcedure = (proc: Procedure) => {
@@ -376,8 +351,8 @@ export const BillingView: React.FC<BillingViewProps> = ({ settings, initialPatie
           <div className="bg-slate-900/90 border border-slate-800/90 rounded-2xl p-3.5 shadow-md backdrop-blur-sm">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2 text-xs font-bold text-slate-200 tracking-wider uppercase">
-                <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse" />
-                <span>Patient Demographics (F4)</span>
+                <span className="w-2 h-2 rounded-full bg-teal-400" />
+                <span>Patient Demographics</span>
               </div>
               <button
                 onClick={() => setShowNewPatientModal(true)}
@@ -465,7 +440,7 @@ export const BillingView: React.FC<BillingViewProps> = ({ settings, initialPatie
                     </button>
                   </>
                 ) : (
-                  <span className="text-slate-500 italic py-1">No patient selected. Search above or press F4.</span>
+                  <span className="text-slate-500 italic py-1">No patient selected. Search above or register patient.</span>
                 )}
               </div>
             </div>
@@ -481,7 +456,7 @@ export const BillingView: React.FC<BillingViewProps> = ({ settings, initialPatie
                 type="text"
                 value={procedureSearch}
                 onChange={(e) => setProcedureSearch(e.target.value)}
-                placeholder="Search tests (e.g. CBC, LFT, Lipid, Thyroid) or press F6..."
+                placeholder="Search tests by name or code (e.g. CBC, LFT, Lipid)..."
                 className="w-full bg-slate-950 border border-slate-700/80 rounded-xl pl-9 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 shadow-inner font-medium"
               />
 
@@ -517,24 +492,40 @@ export const BillingView: React.FC<BillingViewProps> = ({ settings, initialPatie
             </div>
 
             {/* Quick Test Quick-Add Chips */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-2 select-none">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mr-1 flex items-center gap-1">
-                <Zap className="w-3 h-3 text-amber-400" />
-                Quick:
-              </span>
-              {QUICK_TESTS.map((t) => (
-                <button
-                  key={t.code}
-                  type="button"
-                  onClick={() => handleQuickAdd(t.code)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all hover:scale-105 active:scale-95 whitespace-nowrap shadow-sm ${t.tagColor}`}
-                  title={t.name}
-                >
-                  <span>{t.label}</span>
-                  <span className="ml-1 opacity-75 font-mono text-[10px]">₹{t.price}</span>
-                </button>
-              ))}
-            </div>
+            {(() => {
+              const quickList = settings.quickTests && settings.quickTests.length > 0
+                ? settings.quickTests
+                : DEFAULT_QUICK_TESTS;
+
+              if (quickList.length === 0) return null;
+
+              return (
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-2 select-none">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mr-1 flex items-center gap-1 shrink-0">
+                    <Zap className="w-3 h-3 text-amber-400" />
+                    Quick:
+                  </span>
+                  {quickList.map((t) => {
+                    const proc = allProcedures.find((p) => p.code === t.code);
+                    const price = proc ? proc.price : 0;
+                    const label = t.label || proc?.name || t.code;
+                    const tagClass = getQuickTagClass(t.color);
+                    return (
+                      <button
+                        key={t.code}
+                        type="button"
+                        onClick={() => handleQuickAdd(t.code)}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all hover:scale-105 active:scale-95 whitespace-nowrap shadow-sm ${tagClass}`}
+                        title={proc ? `${proc.name} (${proc.code})` : label}
+                      >
+                        <span>{label}</span>
+                        <span className="ml-1 opacity-75 font-mono text-[10px]">₹{price}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              );
+            })()}
 
             {/* Cart Table Container */}
             <div className="flex-1 overflow-y-auto border border-slate-800 rounded-xl bg-slate-950/70 shadow-inner">
@@ -557,7 +548,7 @@ export const BillingView: React.FC<BillingViewProps> = ({ settings, initialPatie
                       <td colSpan={8} className="py-16 text-center text-slate-500 italic">
                         <div className="flex flex-col items-center justify-center gap-2">
                           <Receipt className="w-8 h-8 text-slate-600" />
-                          <span>Billing cart is empty. Click a quick test chip above or press F6.</span>
+                          <span>Billing cart is empty. Search tests or select from quick items above.</span>
                         </div>
                       </td>
                     </tr>
@@ -602,7 +593,7 @@ export const BillingView: React.FC<BillingViewProps> = ({ settings, initialPatie
                               min="0"
                               value={item.discount}
                               onChange={(e) => handleUpdateDiscount(idx, parseFloat(e.target.value) || 0)}
-                              className="w-20 text-right bg-slate-900 border border-slate-700 rounded-lg py-1 px-2 text-xs text-white focus:outline-none focus:border-teal-500 font-mono"
+                              className="w-20 text-right bg-slate-900 border border-slate-700 rounded-lg py-1 px-2 text-xs text-white focus:outline-none focus:border-teal-500 font-mono [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden"
                             />
                           </td>
                           <td className="py-2.5 px-3 text-right font-mono font-extrabold text-teal-300">
@@ -628,7 +619,7 @@ export const BillingView: React.FC<BillingViewProps> = ({ settings, initialPatie
         </div>
 
         {/* Right Column: Checkout, High-Impact Totals, Payments & Today's Activity (4 Cols) */}
-        <div className="col-span-4 flex flex-col gap-3 min-h-0">
+        <div className="col-span-4 flex flex-col gap-3 min-h-0 overflow-y-auto">
           {/* Checkout Card */}
           <div className="bg-slate-900/90 border border-slate-800/90 rounded-2xl p-4 flex flex-col justify-between shadow-md backdrop-blur-sm">
             <div>
@@ -658,7 +649,7 @@ export const BillingView: React.FC<BillingViewProps> = ({ settings, initialPatie
                       min="0"
                       value={billDiscount}
                       onChange={(e) => setBillDiscount(parseFloat(e.target.value) || 0)}
-                      className="w-20 text-right bg-slate-950 border border-slate-700 rounded-lg py-1 px-2 text-xs text-white font-mono focus:outline-none focus:border-teal-500 shadow-inner"
+                      className="w-20 text-right bg-slate-950 border border-slate-700 rounded-lg py-1 px-2 text-xs text-white font-mono focus:outline-none focus:border-teal-500 shadow-inner [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden"
                     />
                   </div>
                 </div>
@@ -827,7 +818,7 @@ export const BillingView: React.FC<BillingViewProps> = ({ settings, initialPatie
                 className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-gradient-to-r from-teal-500 via-emerald-600 to-teal-600 hover:from-teal-400 hover:to-emerald-500 text-white font-extrabold text-sm shadow-xl shadow-teal-950/60 transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
               >
                 <Printer className="w-4 h-4" />
-                <span>Save & Print Invoice (Ctrl+P)</span>
+                <span>Save & Print Invoice</span>
               </button>
 
               <div className="grid grid-cols-2 gap-2">
@@ -838,7 +829,7 @@ export const BillingView: React.FC<BillingViewProps> = ({ settings, initialPatie
                   className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs border border-slate-700 transition disabled:opacity-50"
                 >
                   <Save className="w-3.5 h-3.5" />
-                  <span>Save (Ctrl+S)</span>
+                  <span>Save Bill</span>
                 </button>
 
                 <button
@@ -847,7 +838,7 @@ export const BillingView: React.FC<BillingViewProps> = ({ settings, initialPatie
                   className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-slate-950 hover:bg-slate-800 text-slate-400 hover:text-slate-200 font-semibold text-xs border border-slate-800 transition"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
-                  <span>Reset (F2)</span>
+                  <span>Reset</span>
                 </button>
               </div>
             </div>
@@ -867,9 +858,9 @@ export const BillingView: React.FC<BillingViewProps> = ({ settings, initialPatie
                     type="button"
                     onClick={onViewAllActivity}
                     className="text-[10px] font-bold text-teal-400 hover:text-teal-300 hover:underline flex items-center gap-1 transition"
-                    title="Open Full Billing Activities Menu (F8)"
+                    title="View All Billing Activity"
                   >
-                    <span>Full View (F8)</span>
+                    <span>View All</span>
                     <ArrowRight className="w-3 h-3" />
                   </button>
                 )}
@@ -1170,7 +1161,7 @@ const NewPatientInlineModal: React.FC<NewPatientInlineModalProps> = ({ onClose, 
                 value={age}
                 onChange={(e) => setAge(e.target.value)}
                 placeholder="e.g. 42"
-                className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white font-mono focus:outline-none focus:border-teal-500 shadow-inner"
+                className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white font-mono focus:outline-none focus:border-teal-500 shadow-inner [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden"
               />
             </div>
             <div>

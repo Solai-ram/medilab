@@ -50,6 +50,15 @@ export interface CreatePatientInput {
   referralDoctor?: string;
 }
 
+export interface UpdatePatientInput {
+  name?: string;
+  age?: number;
+  gender?: PatientGender;
+  mobile?: string;
+  address?: string;
+  referralDoctor?: string;
+}
+
 // ==========================================
 // PROCEDURE MASTER TYPES
 // ==========================================
@@ -186,6 +195,7 @@ export interface AppSettings {
   labEmail?: string;
   labGstin?: string;
   labTimings?: string;
+  labLogo?: string;
   invoicePrefix: string;
   invoiceFy: string;
   invoiceSequence: number;
@@ -197,6 +207,13 @@ export interface AppSettings {
   signatoryLabel?: string;
   signatoryDesignation?: string;
   signatoryName?: string;
+  quickTests?: QuickTestConfig[];
+}
+
+export interface QuickTestConfig {
+  code: string;
+  label: string;
+  color?: string; // 'purple' | 'rose' | 'amber' | 'teal' | 'slate' | 'blue' | 'emerald'
 }
 
 // ==========================================

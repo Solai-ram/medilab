@@ -112,8 +112,16 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ settings }) => {
         <div className="flex items-center gap-3.5">
           <div className="relative">
             <div className="absolute -inset-1 bg-gradient-to-r from-teal-500 via-emerald-400 to-teal-600 rounded-2xl blur-sm opacity-70" />
-            <div className="relative w-9 h-9 rounded-xl bg-slate-900 border border-teal-500/50 flex items-center justify-center text-teal-400">
-              <TestTubes className="w-5 h-5 text-teal-300" />
+            <div className="relative w-9 h-9 rounded-xl bg-slate-900 border border-teal-500/50 flex items-center justify-center text-teal-400 overflow-hidden p-1">
+              {settings?.labLogo ? (
+                <img
+                  src={settings.labLogo}
+                  alt={settings.labName || 'Lab Logo'}
+                  className="w-full h-full object-contain rounded-lg"
+                />
+              ) : (
+                <TestTubes className="w-5 h-5 text-teal-300" />
+              )}
             </div>
           </div>
           <div>

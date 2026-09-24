@@ -58,14 +58,14 @@ Build a lightweight, offline-first Windows desktop billing application for diagn
 ┌───────────────────────────────────────────────┐
 │                CLIENT WINDOWS PC              │
 │                                               │
-│              LAB BILLING APP                 │
+│              LAB BILLING APP                  │
 │                                               │
-│  ┌─────────────┐       ┌──────────────────┐  │
+│  ┌─────────────┐       ┌──────────────────┐   │
 │  │ React UI    │──────▶│ Tauri / Rust     │  │
-│  └─────────────┘       └────────┬─────────┘  │
-│                                 │            │
-│                                 ▼            │
-│                           SQLite DB          │
+│  └─────────────┘       └────────┬─────────┘   │
+│                                 │             │
+│                                 ▼             │
+│                           SQLite DB           │
 │                                               │
 │ Billing                                       │
 │ Procedure Master                              │

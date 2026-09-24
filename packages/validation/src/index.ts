@@ -63,6 +63,7 @@ export const AppSettingsSchema = z.object({
   labEmail: z.string().email().optional().or(z.literal('')),
   labGstin: z.string().max(20).optional().or(z.literal('')),
   labTimings: z.string().max(100).optional(),
+  labLogo: z.string().optional().or(z.literal('')),
   invoicePrefix: z.string().min(1).max(10).toUpperCase(),
   invoiceFy: z.string().min(4).max(10),
   invoiceSequence: z.coerce.number().int().min(1),

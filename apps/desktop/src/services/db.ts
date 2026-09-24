@@ -3,6 +3,7 @@ import {
   SessionUser,
   Patient,
   CreatePatientInput,
+  UpdatePatientInput,
   Procedure,
   ProcedureCategory,
   CreateProcedureInput,
@@ -10,6 +11,7 @@ import {
   CreateBillInput,
   BillCancellation,
   AppSettings,
+  QuickTestConfig,
   RevenueMetrics,
   DailyCollectionRow,
   ProcedureRevenueRow,
@@ -68,6 +70,32 @@ const INITIAL_PATIENTS: Patient[] = [
   { id: 'pat_003', patientCode: 'P000003', name: 'Venkatesh Rao', age: 52, gender: 'MALE', mobile: '9123456780', address: 'H.No 12-4-88, Gandhi Nagar, Vijayawada', createdAt: new Date(Date.now() - 86400000).toISOString(), updatedAt: new Date().toISOString() },
 ];
 
+export const DEFAULT_QUICK_TESTS: QuickTestConfig[] = [
+  { code: 'CBC001', label: 'CBC', color: 'purple' },
+  { code: 'LFT001', label: 'LFT', color: 'rose' },
+  { code: 'KFT001', label: 'KFT / RFT', color: 'rose' },
+  { code: 'LIP001', label: 'Lipid Profile', color: 'amber' },
+  { code: 'TSH001', label: 'TSH', color: 'teal' },
+  { code: 'GLU001', label: 'FBS Sugar', color: 'slate' },
+  { code: 'HBA001', label: 'HbA1c', color: 'purple' },
+  { code: 'URN001', label: 'Urine Routine', color: 'blue' },
+];
+
+export const QUICK_COLOR_OPTIONS = [
+  { id: 'purple', label: 'EDTA Purple', className: 'bg-purple-950/70 border-purple-800 text-purple-300 hover:border-purple-600', dotColor: '#a855f7' },
+  { id: 'rose', label: 'Serum Red', className: 'bg-rose-950/70 border-rose-800 text-rose-300 hover:border-rose-600', dotColor: '#ef4444' },
+  { id: 'amber', label: 'Amber Yellow', className: 'bg-amber-950/70 border-amber-800 text-amber-300 hover:border-amber-600', dotColor: '#f59e0b' },
+  { id: 'teal', label: 'Teal Hormones', className: 'bg-teal-950/70 border-teal-800 text-teal-300 hover:border-teal-600', dotColor: '#14b8a6' },
+  { id: 'slate', label: 'Fluoride Slate', className: 'bg-slate-800 border-slate-700 text-slate-300 hover:border-slate-500', dotColor: '#94a3b8' },
+  { id: 'blue', label: 'Pathology Blue', className: 'bg-blue-950/70 border-blue-800 text-blue-300 hover:border-blue-600', dotColor: '#38bdf8' },
+  { id: 'emerald', label: 'Emerald Green', className: 'bg-emerald-950/70 border-emerald-800 text-emerald-300 hover:border-emerald-600', dotColor: '#10b981' },
+];
+
+export const getQuickTagClass = (colorId?: string): string => {
+  const match = QUICK_COLOR_OPTIONS.find((c) => c.id === colorId);
+  return match ? match.className : 'bg-slate-800 border-slate-700 text-slate-300 hover:border-slate-500';
+};
+
 const INITIAL_SETTINGS: AppSettings = {
   labName: 'MEDILAB DIAGNOSTIC CENTER',
   labTagline: 'Accuracy in Every Diagnosis',
@@ -76,6 +104,7 @@ const INITIAL_SETTINGS: AppSettings = {
   labEmail: 'contact@medilabdiagnostics.com',
   labGstin: '36AAAAA0000A1Z5',
   labTimings: 'Mon - Sat: 7:00 AM - 9:00 PM | Sun: 7:00 AM - 1:00 PM',
+  labLogo: '',
   invoicePrefix: 'LAB',
   invoiceFy: '2026-27',
   invoiceSequence: 104,
@@ -87,6 +116,7 @@ const INITIAL_SETTINGS: AppSettings = {
   signatoryLabel: 'Authorized Signatory',
   signatoryDesignation: 'Pathologist / Lab In-Charge',
   signatoryName: '',
+  quickTests: DEFAULT_QUICK_TESTS,
 };
 
 // =========================================================
@@ -134,6 +164,9 @@ class StorageState {
             ...parsed.settings,
             signatoryLabel: parsed.settings.signatoryLabel || 'Authorized Signatory',
             signatoryDesignation: parsed.settings.signatoryDesignation || 'Pathologist / Lab In-Charge',
+            quickTests: parsed.settings.quickTests && parsed.settings.quickTests.length > 0
+              ? parsed.settings.quickTests
+              : DEFAULT_QUICK_TESTS,
           };
         }
         if (parsed.license) this.license = parsed.license;
@@ -366,6 +399,31 @@ export const dbService = {
     return newPatient;
   },
 
+  async updatePatient(id: string, input: UpdatePatientInput): Promise<Patient> {
+    const patient = state.patients.find((p) => p.id === id);
+    if (!patient) throw new Error('Patient not found');
+
+    if (input.name !== undefined) patient.name = input.name.trim();
+    if (input.age !== undefined) patient.age = Number(input.age);
+    if (input.gender !== undefined) patient.gender = input.gender;
+    if (input.mobile !== undefined) patient.mobile = input.mobile.trim();
+    if (input.address !== undefined) patient.address = input.address?.trim() || undefined;
+    if (input.referralDoctor !== undefined) patient.referralDoctor = input.referralDoctor?.trim() || undefined;
+    patient.updatedAt = new Date().toISOString();
+
+    // Synchronize ALL historical and existing bills associated with this patient
+    // so that reprint, invoice view, and receipt copies instantly reflect the edited patient info
+    for (const bill of state.bills) {
+      if (bill.patientId === id) {
+        bill.patient = { ...patient };
+        bill.updatedAt = new Date().toISOString();
+      }
+    }
+
+    state.saveToStorage();
+    return { ...patient };
+  },
+
   // -------------------------------------------------------
   // PROCEDURES & CATEGORIES
   // -------------------------------------------------------
@@ -561,15 +619,24 @@ export const dbService = {
   },
 
   async getBills(limit = 50): Promise<Bill[]> {
-    return state.bills.slice(0, limit);
+    return state.bills.slice(0, limit).map((b) => {
+      const currentPatient = state.patients.find((p) => p.id === b.patientId);
+      return currentPatient ? { ...b, patient: currentPatient } : b;
+    });
   },
 
   async getAllBills(): Promise<Bill[]> {
-    return [...state.bills];
+    return state.bills.map((b) => {
+      const currentPatient = state.patients.find((p) => p.id === b.patientId);
+      return currentPatient ? { ...b, patient: currentPatient } : b;
+    });
   },
 
   async getBillById(id: string): Promise<Bill | null> {
-    return state.bills.find((b) => b.id === id) || null;
+    const bill = state.bills.find((b) => b.id === id);
+    if (!bill) return null;
+    const currentPatient = state.patients.find((p) => p.id === bill.patientId);
+    return currentPatient ? { ...bill, patient: currentPatient } : bill;
   },
 
   async cancelBill(billId: string, reason: string, user: SessionUser): Promise<Bill> {
@@ -757,6 +824,12 @@ export const dbService = {
 
   async updateSettings(newSettings: Partial<AppSettings>): Promise<AppSettings> {
     state.settings = { ...state.settings, ...newSettings };
+    state.saveToStorage();
+    return state.settings;
+  },
+
+  async updateQuickTests(quickTests: QuickTestConfig[]): Promise<AppSettings> {
+    state.settings = { ...state.settings, quickTests };
     state.saveToStorage();
     return state.settings;
   },

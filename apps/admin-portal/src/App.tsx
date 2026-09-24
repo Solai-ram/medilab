@@ -49,7 +49,8 @@ interface Customer {
   status: string;
 }
 
-const API_BASE = 'http://localhost:4000/api/v1/admin';
+const RAW_API_URL = (import.meta as any).env?.VITE_LICENSE_API_URL || 'http://localhost:4000';
+const API_BASE = `${RAW_API_URL.replace(/\/$/, '')}/api/v1/admin`;
 
 export const App: React.FC = () => {
   const [licenses, setLicenses] = useState<License[]>([]);

@@ -319,7 +319,7 @@ export const BillingActivityView: React.FC<BillingActivityViewProps> = ({
               className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-teal-600 to-teal-500 hover:from-teal-500 hover:to-teal-400 text-white text-xs font-bold shadow-md shadow-teal-950/50 transition duration-150 transform hover:scale-[1.02] active:scale-[0.98]"
             >
               <Plus className="w-4 h-4" />
-              <span>Create New Bill (F2)</span>
+              <span>Create New Bill</span>
             </button>
           )}
         </div>
@@ -531,7 +531,7 @@ export const BillingActivityView: React.FC<BillingActivityViewProps> = ({
                   onClick={onStartNewBill}
                   className="px-4 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold transition"
                 >
-                  + New Bill (F2)
+                  + New Bill
                 </button>
               )}
             </div>
