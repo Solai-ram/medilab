@@ -19,6 +19,18 @@ import {
 } from '@lab/shared-types';
 import { calculateBillSummary, formatBillNumber } from '@lab/billing-engine';
 import { activateOnlineLicense, getDeviceFingerprint } from './licenseBridge';
+import {
+  tauriGetHardwareFingerprint,
+  tauriGetSettings,
+  tauriSaveSettings,
+  tauriGetLicense,
+  tauriSaveLicense,
+  tauriVerifyPassword,
+  tauriPatients,
+  tauriProcedures,
+  tauriBills,
+  tauriExportBackup,
+} from './tauriDb';
 
 // Helper to detect if running inside Tauri runtime
 export const isTauri = (): boolean => {
@@ -354,16 +366,21 @@ export const dbService = {
     const cleanUser = (username || '').trim().toLowerCase();
     if (cleanUser !== 'admin') return null;
 
-    // Load stored hash or seed the default on first run
-    const HASH_KEY = 'LAB_ADMIN_PWD_HASH';
-    let storedHash = localStorage.getItem(HASH_KEY);
-    if (!storedHash) {
-      localStorage.setItem(HASH_KEY, DEFAULT_ADMIN_PASSWORD_HASH);
-      storedHash = DEFAULT_ADMIN_PASSWORD_HASH;
+    // When in Tauri: delegate hash verification to Rust (SHA-256 stored in SQLite)
+    if (isTauri()) {
+      const ok = await tauriVerifyPassword(passwordPlain.trim());
+      if (!ok) return null;
+    } else {
+      // Browser fallback: compare against localStorage hash
+      const HASH_KEY = 'LAB_ADMIN_PWD_HASH';
+      let storedHash = localStorage.getItem(HASH_KEY);
+      if (!storedHash) {
+        localStorage.setItem(HASH_KEY, DEFAULT_ADMIN_PASSWORD_HASH);
+        storedHash = DEFAULT_ADMIN_PASSWORD_HASH;
+      }
+      const enteredHash = await hashPassword(passwordPlain.trim());
+      if (enteredHash !== storedHash) return null;
     }
-
-    const enteredHash = await hashPassword(passwordPlain.trim());
-    if (enteredHash !== storedHash) return null;
 
     const user = state.users[0] || INITIAL_USERS[0];
     user.lastLoginAt = new Date().toISOString();
@@ -380,10 +397,20 @@ export const dbService = {
   // PATIENTS
   // -------------------------------------------------------
   async getPatients(): Promise<Patient[]> {
+    if (isTauri()) {
+      const rows = await tauriPatients.getAll();
+      return rows as unknown as Patient[];
+    }
     return [...state.patients].reverse();
   },
 
   async searchPatients(query: string): Promise<Patient[]> {
+    if (isTauri()) {
+      const q = query.trim();
+      if (!q) return this.getPatients();
+      const rows = await tauriPatients.search(q);
+      return rows as unknown as Patient[];
+    }
     const q = query.trim().toLowerCase();
     if (!q) return [...state.patients].reverse();
     return state.patients.filter((p) => {
@@ -398,6 +425,26 @@ export const dbService = {
   },
 
   async createPatient(input: CreatePatientInput): Promise<Patient> {
+    if (isTauri()) {
+      // Count existing patients from SQLite for sequential code
+      const rows = await tauriPatients.getAll();
+      const seq = rows.length + 1;
+      const patientCode = `P${String(seq).padStart(6, '0')}`;
+      const newPatient: Patient = {
+        id: `pat_${Date.now()}`,
+        patientCode,
+        name: input.name.trim(),
+        age: Number(input.age),
+        gender: input.gender,
+        mobile: input.mobile.trim(),
+        address: input.address?.trim(),
+        referralDoctor: input.referralDoctor?.trim() || undefined,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      await tauriPatients.insert(newPatient as unknown as Record<string, unknown>);
+      return newPatient;
+    }
     const seq = state.patients.length + 1;
     const patientCode = `P${String(seq).padStart(6, '0')}`;
     const newPatient: Patient = {
@@ -837,22 +884,34 @@ export const dbService = {
   // SETTINGS & BACKUP
   // -------------------------------------------------------
   async getSettings(): Promise<AppSettings> {
+    if (isTauri()) {
+      const settings = await tauriGetSettings();
+      if (settings) return { ...INITIAL_SETTINGS, ...(settings as Partial<AppSettings>) };
+    }
     return { ...state.settings };
   },
 
   async updateSettings(newSettings: Partial<AppSettings>): Promise<AppSettings> {
+    if (isTauri()) {
+      const current = await tauriGetSettings() || {};
+      const updated = { ...INITIAL_SETTINGS, ...current, ...newSettings };
+      await tauriSaveSettings(updated as Record<string, unknown>);
+      return updated as AppSettings;
+    }
     state.settings = { ...state.settings, ...newSettings };
     state.saveToStorage();
     return state.settings;
   },
 
   async updateQuickTests(quickTests: QuickTestConfig[]): Promise<AppSettings> {
-    state.settings = { ...state.settings, quickTests };
-    state.saveToStorage();
-    return state.settings;
+    return this.updateSettings({ quickTests });
   },
 
   async getLicenseState(): Promise<LicenseState> {
+    if (isTauri()) {
+      const lic = await tauriGetLicense();
+      if (lic && lic.isActivated) return lic as unknown as LicenseState;
+    }
     return { ...state.license };
   },
 
@@ -860,48 +919,57 @@ export const dbService = {
     const cleanKey = key.toUpperCase().trim();
     const onlineRes = await activateOnlineLicense(cleanKey, 'LAB-FRONTDESK-PC');
 
-    if (onlineRes.success && onlineRes.license) {
-      state.license = {
-        isActivated: true,
-        licenseKey: cleanKey,
-        customerName: onlineRes.license.customerName,
-        plan: onlineRes.license.plan,
-        status: 'ACTIVE',
-        expiresAt: onlineRes.license.expiresAt || undefined,
-        offlineGraceUntil: onlineRes.license.offlineGraceUntil,
-        deviceFingerprint: onlineRes.signedToken?.payload.deviceFingerprint || 'SHA256:BOUND_HARDWARE',
-        deviceName: 'LAB-FRONTDESK-PC',
-        lastValidatedAt: new Date().toISOString(),
-      };
-      state.saveToStorage();
-      return state.license;
-    }
+    // Get hardware fingerprint — use real Rust-based fingerprint in Tauri
+    const fp = isTauri()
+      ? (await tauriGetHardwareFingerprint()) || await getDeviceFingerprint()
+      : await getDeviceFingerprint();
 
-    // If offline or server not running, activate with local fingerprint binding
-    const fp = await getDeviceFingerprint();
-    state.license = {
-      isActivated: true,
-      licenseKey: cleanKey,
-      customerName: state.settings.labName,
-      plan: 'ANNUAL',
-      status: 'ACTIVE',
-      expiresAt: new Date(Date.now() + 86400000 * 365).toISOString(),
-      offlineGraceUntil: new Date(Date.now() + 86400000 * 60).toISOString(),
-      deviceFingerprint: fp,
-      deviceName: 'LAB-FRONTDESK-PC',
-      lastValidatedAt: new Date().toISOString(),
-    };
-    state.saveToStorage();
-    return state.license;
+    const newLicense: LicenseState = onlineRes.success && onlineRes.license
+      ? {
+          isActivated: true,
+          licenseKey: cleanKey,
+          customerName: onlineRes.license.customerName,
+          plan: onlineRes.license.plan,
+          status: 'ACTIVE',
+          expiresAt: onlineRes.license.expiresAt || undefined,
+          offlineGraceUntil: onlineRes.license.offlineGraceUntil,
+          deviceFingerprint: onlineRes.signedToken?.payload.deviceFingerprint || fp,
+          deviceName: 'LAB-FRONTDESK-PC',
+          lastValidatedAt: new Date().toISOString(),
+        }
+      : {
+          isActivated: true,
+          licenseKey: cleanKey,
+          customerName: state.settings.labName,
+          plan: 'ANNUAL',
+          status: 'ACTIVE',
+          expiresAt: new Date(Date.now() + 86400000 * 365).toISOString(),
+          offlineGraceUntil: new Date(Date.now() + 86400000 * 60).toISOString(),
+          deviceFingerprint: fp,
+          deviceName: 'LAB-FRONTDESK-PC',
+          lastValidatedAt: new Date().toISOString(),
+        };
+
+    if (isTauri()) {
+      await tauriSaveLicense(newLicense as unknown as Record<string, unknown>);
+    } else {
+      state.license = newLicense;
+      state.saveToStorage();
+    }
+    return newLicense;
   },
 
   async createBackup(): Promise<string> {
     const filename = `LabBilling_Backup_${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
-    const data = JSON.stringify({
-      version: 1,
-      createdAt: new Date().toISOString(),
-      state,
-    }, null, 2);
+    let data: string;
+
+    if (isTauri()) {
+      // Use Rust to export full SQLite contents
+      const backup = await tauriExportBackup();
+      data = JSON.stringify(backup, null, 2);
+    } else {
+      data = JSON.stringify({ version: 1, createdAt: new Date().toISOString(), state }, null, 2);
+    }
 
     const blob = new Blob([data], { type: 'application/json' });
     const url = URL.createObjectURL(blob);

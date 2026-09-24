@@ -4,10 +4,23 @@ const RAW_API_URL = (import.meta as any).env?.VITE_LICENSE_API_URL || 'http://lo
 const LICENSE_API_URL = `${RAW_API_URL.replace(/\/$/, '')}/api/v1/licenses`;
 
 /**
- * Computes a deterministic client device fingerprint from browser/hardware attributes.
- * When compiled in Tauri, Rust retrieves Motherboard UUID + Disk Serial + CPU ID.
+ * Computes a deterministic client device fingerprint.
+ * In Tauri: reads the real Windows Machine GUID via Rust (most stable).
+ * In browser dev: hashes browser/screen attributes as a fallback.
  */
 export async function getDeviceFingerprint(): Promise<string> {
+  // Try Tauri hardware fingerprint first (real hardware ID)
+  if (typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window) {
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      const fp = await invoke<string>('get_hardware_fingerprint');
+      if (fp && fp.startsWith('SHA256:')) return fp;
+    } catch {
+      // Fall through to browser fallback
+    }
+  }
+
+  // Browser fallback (dev mode only)
   const components = [
     navigator.userAgent,
     navigator.language,
@@ -24,6 +37,7 @@ export async function getDeviceFingerprint(): Promise<string> {
 
   return `SHA256:${hashHex}`;
 }
+
 
 export interface ActivationResponse {
   success: boolean;
