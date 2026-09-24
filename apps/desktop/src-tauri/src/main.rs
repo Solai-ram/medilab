@@ -15,12 +15,23 @@ use sha2::{Sha256, Digest};
 
 fn get_app_data_dir() -> PathBuf {
     let base = std::env::var("ProgramData").unwrap_or_else(|_| "C:\\ProgramData".to_string());
-    let path = PathBuf::from(base).join("LabBilling");
-    let _ = fs::create_dir_all(path.join("database"));
-    let _ = fs::create_dir_all(path.join("backups"));
-    let _ = fs::create_dir_all(path.join("exports"));
-    let _ = fs::create_dir_all(path.join("logs"));
-    path
+    let path = PathBuf::from(&base).join("LabBilling");
+    let test_dir = path.join("database");
+    if fs::create_dir_all(&test_dir).is_ok() {
+        let _ = fs::create_dir_all(path.join("backups"));
+        let _ = fs::create_dir_all(path.join("exports"));
+        let _ = fs::create_dir_all(path.join("logs"));
+        path
+    } else {
+        // Fallback to user APPDATA if ProgramData permissions are restricted
+        let appdata = std::env::var("APPDATA").unwrap_or_else(|_| "C:\\AppData".to_string());
+        let fallback = PathBuf::from(appdata).join("LabBilling");
+        let _ = fs::create_dir_all(fallback.join("database"));
+        let _ = fs::create_dir_all(fallback.join("backups"));
+        let _ = fs::create_dir_all(fallback.join("exports"));
+        let _ = fs::create_dir_all(fallback.join("logs"));
+        fallback
+    }
 }
 
 fn get_db_path() -> PathBuf {
@@ -531,6 +542,47 @@ fn db_export_backup(state: tauri::State<DbState>) -> Value {
     })
 }
 
+/// Export database as binary SQLite .db backup file using VACUUM INTO
+#[tauri::command]
+fn db_backup_sqlite(state: tauri::State<DbState>, custom_dest: Option<String>) -> Result<String, String> {
+    let conn = state.0.lock().unwrap();
+    let target = match custom_dest {
+        Some(p) if !p.trim().is_empty() => PathBuf::from(p),
+        _ => {
+            let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S").to_string();
+            get_app_data_dir().join("backups").join(format!("labbilling_backup_{}.db", timestamp))
+        }
+    };
+
+    if let Some(parent) = target.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+
+    if target.exists() {
+        let _ = fs::remove_file(&target);
+    }
+
+    let target_str = target.to_string_lossy().to_string();
+    conn.execute("VACUUM INTO ?1", params![target_str])
+        .map_err(|e| format!("SQLite VACUUM INTO failed: {}", e))?;
+
+    Ok(target_str)
+}
+
+#[tauri::command]
+fn db_get_backup_dir() -> String {
+    get_app_data_dir().join("backups").to_string_lossy().to_string()
+}
+
+fn run_auto_backup(conn: &Connection) {
+    let today = chrono::Local::now().format("%Y-%m-%d").to_string();
+    let auto_backup_path = get_app_data_dir().join("backups").join(format!("auto_backup_{}.db", today));
+    if !auto_backup_path.exists() {
+        let path_str = auto_backup_path.to_string_lossy().to_string();
+        let _ = conn.execute("VACUUM INTO ?1", params![path_str]);
+    }
+}
+
 // ─────────────────────────────────────────────────────────────
 // Main
 // ─────────────────────────────────────────────────────────────
@@ -539,6 +591,7 @@ fn main() {
     let db_path = get_db_path();
     let conn = Connection::open(&db_path).expect("Failed to open SQLite database");
     init_db(&conn).expect("Failed to initialize database schema");
+    run_auto_backup(&conn);
 
     eprintln!("✅ SQLite database open: {}", db_path.display());
 
@@ -556,6 +609,8 @@ fn main() {
             db_get_license,
             db_save_license,
             db_export_backup,
+            db_backup_sqlite,
+            db_get_backup_dir,
         ])
         .run(tauri::generate_context!())
         .expect("error while running MediLab billing application");

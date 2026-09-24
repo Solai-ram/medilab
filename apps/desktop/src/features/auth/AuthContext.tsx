@@ -9,6 +9,7 @@ interface AuthContextType {
   isCashier: boolean;
   login: (username: string, password: string) => Promise<boolean>;
   logout: () => void;
+  markPasswordChanged: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -49,6 +50,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem('LAB_EXPLICIT_LOGOUT', 'true');
   };
 
+  const markPasswordChanged = () => {
+    if (user) {
+      const updated = { ...user, mustChangePassword: false };
+      setUser(updated);
+      localStorage.setItem('LAB_SESSION_USER', JSON.stringify(updated));
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -58,6 +67,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isCashier: false,
         login,
         logout,
+        markPasswordChanged,
       }}
     >
       {children}

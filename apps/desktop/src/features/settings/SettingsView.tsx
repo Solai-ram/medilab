@@ -22,6 +22,7 @@ import {
   Eye,
   FileSignature,
   Zap,
+  Clock,
   Plus,
   Trash2,
   ArrowUp,
@@ -151,9 +152,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSettings
     setTimeout(() => setSaveStatus(null), 3500);
   };
 
+  const handleSqliteBackup = async () => {
+    try {
+      const res = await dbService.createSqliteBackup();
+      setSaveStatus(`SQLite .db binary backup completed! Saved to ${res}`);
+      setTimeout(() => setSaveStatus(null), 4000);
+    } catch (err: any) {
+      setSaveStatus(`Backup failed: ${err?.message || err}`);
+    }
+  };
+
   const handleBackupNow = async () => {
     const filename = await dbService.createBackup();
-    setSaveStatus(`Backup file "${filename}" downloaded successfully!`);
+    setSaveStatus(`JSON export file "${filename}" generated!`);
     setTimeout(() => setSaveStatus(null), 3000);
   };
 
@@ -677,10 +688,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSettings
         )}
 
         {activeTab === 'backup' && (
-          <div className="max-w-2xl space-y-6">
+          <div className="max-w-2xl space-y-5">
             <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
               <Database className="w-4 h-4 text-teal-400" />
-              Local SQLite Database Safety & Disaster Recovery
+              Database Management & Disaster Recovery
             </h3>
 
             {restoreStatus && (
@@ -689,39 +700,45 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSettings
               </div>
             )}
 
-            <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
+            {/* 1. Quick SQLite .db Backup */}
+            <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-2">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="font-semibold text-white text-xs">Create Instant Database Backup</div>
-                  <div className="text-[11px] text-slate-400 mt-0.5">
-                    Exports active patients, procedure catalog, invoices, and settings to a portable timestamped file.
+                  <div className="font-semibold text-white text-xs flex items-center gap-1.5">
+                    <HardDrive className="w-3.5 h-3.5 text-teal-400" />
+                    <span>Quick SQLite Database Backup (.db)</span>
+                  </div>
+                  <div className="text-[11px] text-slate-400 mt-0.5 max-w-md">
+                    Creates an exact binary snapshot of your local database (<code className="text-teal-300">labbilling.db</code>). Highly recommended for flash drive backups.
                   </div>
                 </div>
                 <button
-                  onClick={handleBackupNow}
-                  className="flex items-center gap-1.5 px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white text-xs font-semibold rounded-lg shadow transition"
+                  type="button"
+                  onClick={handleSqliteBackup}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white text-xs font-semibold rounded-lg shadow transition shrink-0"
                 >
-                  <Download className="w-4 h-4" />
-                  <span>Backup Now</span>
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Quick Backup</span>
                 </button>
               </div>
             </div>
 
-            <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
+            {/* 2. Restore Backup */}
+            <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-2">
               <div className="flex items-start justify-between">
                 <div>
                   <div className="font-semibold text-rose-300 text-xs flex items-center gap-1.5">
                     <AlertTriangle className="w-4 h-4 text-rose-400" />
-                    Restore Database from Backup
+                    <span>Restore Database</span>
                   </div>
                   <div className="text-[11px] text-slate-400 mt-0.5 max-w-md">
-                    Restoring replaces current local records. Always take a manual backup before performing a restore.
+                    Restores data from a previously created <code className="text-slate-300">.db</code> or <code className="text-slate-300">.json</code> backup. Always keep a current backup before restoring.
                   </div>
                 </div>
                 {isAdmin ? (
-                  <label className="flex items-center gap-1.5 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg cursor-pointer border border-slate-700 transition">
-                    <Upload className="w-4 h-4" />
-                    <span>Select Backup File</span>
+                  <label className="flex items-center gap-1.5 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg cursor-pointer border border-slate-700 transition shrink-0">
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>Restore Backup</span>
                     <input type="file" accept=".json,.db" onChange={handleRestoreFile} className="hidden" />
                   </label>
                 ) : (
@@ -730,10 +747,42 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSettings
               </div>
             </div>
 
-            <div className="p-3 bg-slate-950 border border-slate-800 rounded-lg text-xs space-y-1 text-slate-400">
-              <div className="font-semibold text-slate-300">Windows Storage Path:</div>
-              <div className="font-mono text-[11px] text-teal-400">C:\ProgramData\LabBilling\database\labbilling.db</div>
-              <div className="text-[11px] text-slate-500">Backups folder: C:\ProgramData\LabBilling\backups\</div>
+            {/* 3. Export Data (JSON) */}
+            <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-semibold text-white text-xs">Export Data (JSON)</div>
+                  <div className="text-[11px] text-slate-400 mt-0.5 max-w-md">
+                    Exports patient records, procedure master, and bills in human-readable JSON format for audits or spreadsheet reporting.
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleBackupNow}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-lg border border-slate-700 shadow transition shrink-0"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Export JSON</span>
+                </button>
+              </div>
+            </div>
+
+            {/* 4. Automatic Backup & Path Details */}
+            <div className="p-3.5 bg-slate-950 border border-slate-800 rounded-xl text-xs space-y-2 text-slate-400">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-slate-300 flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-teal-400" />
+                  Automatic Daily Backup:
+                </span>
+                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-800/80">
+                  <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                  Active (On Startup)
+                </span>
+              </div>
+              <div className="text-[11px] space-y-1 font-mono text-slate-400">
+                <div>Active DB: <span className="text-teal-400">C:\ProgramData\LabBilling\database\labbilling.db</span></div>
+                <div>Backups Directory: <span className="text-slate-300">C:\ProgramData\LabBilling\backups\</span></div>
+              </div>
             </div>
           </div>
         )}
@@ -756,34 +805,42 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSettings
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-400">Active License Key:</span>
-                  <span className="font-mono font-bold text-teal-300">{license.licenseKey}</span>
-                </div>
-
-                <div className="flex items-center justify-between">
                   <span className="text-slate-400">License Plan:</span>
-                  <span className="font-semibold text-slate-200">{license.plan} Subscription</span>
+                  <span className="font-semibold text-slate-200">
+                    {license.plan === 'LIFETIME' ? 'Lifetime License' : `${license.plan} Subscription`}
+                  </span>
                 </div>
 
                 <div className="flex items-center justify-between">
                   <span className="text-slate-400">Expiration Date:</span>
-                  <span className="font-mono text-slate-200">
-                    {license.expiresAt ? new Date(license.expiresAt).toLocaleDateString() : 'Lifetime'}
+                  <span className="font-mono text-slate-200 font-semibold">
+                    {license.plan === 'LIFETIME' ? (
+                      <span className="text-emerald-400">Permanent (Lifetime)</span>
+                    ) : license.expiresAt ? (
+                      <span>
+                        {new Date(license.expiresAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        {Math.ceil((new Date(license.expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) > 0 && (
+                          <span className="ml-2 text-[10px] text-teal-400 font-normal">
+                            ({Math.ceil((new Date(license.expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24))} days remaining)
+                          </span>
+                        )}
+                      </span>
+                    ) : (
+                      'N/A'
+                    )}
                   </span>
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-400">Offline Operation Grace Until:</span>
-                  <span className="font-mono text-emerald-400">
-                    {license.offlineGraceUntil ? new Date(license.offlineGraceUntil).toLocaleDateString() : 'N/A'}
-                  </span>
+                  <span className="text-slate-400">Active License Key:</span>
+                  <span className="font-mono font-bold text-teal-300">{license.licenseKey}</span>
                 </div>
 
                 <div className="pt-2 border-t border-slate-800">
                   <div className="flex items-center justify-between text-[11px] text-slate-400 mb-1">
                     <div className="flex items-center gap-1.5">
                       <Cpu className="w-3.5 h-3.5 text-teal-400" />
-                      <span>Bound Hardware Machine Fingerprint (SHA-256):</span>
+                      <span>Machine Binding (SHA-256 Hardware Fingerprint):</span>
                     </div>
                     <button
                       type="button"
@@ -804,7 +861,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSettings
                     {license.deviceFingerprint}
                   </div>
                   <div className="text-[10px] text-slate-500 mt-1">
-                    Registered device: {license.deviceName}
+                    Registered machine: {license.deviceName} • Bound
                   </div>
                 </div>
               </div>

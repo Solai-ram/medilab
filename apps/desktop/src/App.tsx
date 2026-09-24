@@ -3,6 +3,7 @@ import { dbService } from './services/db';
 import { AppSettings, Patient } from '@lab/shared-types';
 import { useAuth } from './features/auth/AuthContext';
 import { LoginScreen } from './features/auth/LoginScreen';
+import { FirstRunPasswordScreen } from './features/auth/FirstRunPasswordScreen';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 import { BillingView } from './features/billing/BillingView';
@@ -41,6 +42,11 @@ export const App: React.FC = () => {
   // Workstation Lock Screen if not signed in
   if (!user) {
     return <LoginScreen settings={settings} />;
+  }
+
+  // Force first-run password setup if administrator password is still default seed
+  if (user.mustChangePassword) {
+    return <FirstRunPasswordScreen />;
   }
 
   return (

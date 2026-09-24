@@ -305,3 +305,18 @@ export const tauriBills = {
     );
   },
 };
+
+// ─────────────────────────────────────────────────────────────
+// SQLite Native Backup Helpers
+// ─────────────────────────────────────────────────────────────
+
+export async function tauriBackupSqlite(customDest?: string): Promise<string> {
+  if (!isTauri()) return 'SQLite backup only available in native desktop mode';
+  return invoke<string>('db_backup_sqlite', { customDest: customDest || null });
+}
+
+export async function tauriGetBackupDir(): Promise<string> {
+  if (!isTauri()) return '';
+  return invoke<string>('db_get_backup_dir');
+}
+

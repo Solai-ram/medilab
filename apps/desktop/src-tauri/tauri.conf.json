@@ -36,6 +36,9 @@
       "icons/icon.ico"
     ],
     "windows": {
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      },
       "nsis": {
         "installMode": "perMachine",
         "installerIcon": "icons/icon.ico"

@@ -59,21 +59,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ settings }) => {
     return () => clearInterval(timer);
   }, []);
 
-  const handleQuickLogin = async () => {
-    setError(null);
-    setIsSubmitting(true);
-    try {
-      const ok = await login('admin', 'admin123');
-      if (!ok) {
-        setError('Login failed. Please verify credentials.');
-      }
-    } catch {
-      setError('An error occurred during authentication');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!username.trim()) {
@@ -90,7 +75,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ settings }) => {
     try {
       const ok = await login(username, password);
       if (!ok) {
-        setError('Invalid username or password. Default login is admin / admin123');
+        setError('Invalid username or password. Please verify credentials.');
       }
     } catch {
       setError('An error occurred during authentication');
@@ -194,28 +179,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ settings }) => {
             </div>
           )}
 
-          {/* 1-Click Quick Demo Sign In */}
-          <div className="mb-5">
-            <button
-              type="button"
-              disabled={isSubmitting}
-              onClick={handleQuickLogin}
-              className="w-full py-2.5 px-4 rounded-xl bg-slate-950 hover:bg-slate-800 border border-teal-500/40 hover:border-teal-400 text-teal-300 font-semibold text-xs transition flex items-center justify-center gap-2 group shadow-sm disabled:opacity-50"
-            >
-              <Zap className="w-4 h-4 text-teal-400 group-hover:scale-110 transition" />
-              <span>Instant 1-Click Sign In</span>
-            </button>
-          </div>
-
-          {/* Divider */}
-          <div className="relative flex py-1 items-center mb-4">
-            <div className="flex-grow border-t border-slate-800"></div>
-            <span className="flex-shrink mx-3 text-[10px] font-mono uppercase tracking-wider text-slate-500">
-              Or Enter Credentials
-            </span>
-            <div className="flex-grow border-t border-slate-800"></div>
-          </div>
-
           {/* Login Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -257,21 +220,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ settings }) => {
                   {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                 </button>
               </div>
-            </div>
-
-            {/* Credentials Note */}
-            <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 text-[11px] text-slate-400 flex items-center justify-between font-mono">
-              <span>Default Login:</span>
-              <button
-                type="button"
-                onClick={() => {
-                  setUsername('admin');
-                  setPassword('admin123');
-                }}
-                className="text-teal-400 hover:underline font-bold"
-              >
-                admin / admin123
-              </button>
             </div>
 
             {/* Submit */}

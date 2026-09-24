@@ -21,6 +21,7 @@ export interface SessionUser {
   fullName: string;
   role: UserRole;
   token: string;
+  mustChangePassword?: boolean;
 }
 
 // ==========================================

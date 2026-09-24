@@ -26,10 +26,13 @@ import {
   tauriGetLicense,
   tauriSaveLicense,
   tauriVerifyPassword,
+  tauriChangePassword,
   tauriPatients,
   tauriProcedures,
   tauriBills,
   tauriExportBackup,
+  tauriBackupSqlite,
+  tauriGetBackupDir,
 } from './tauriDb';
 
 // Helper to detect if running inside Tauri runtime
@@ -382,6 +385,9 @@ export const dbService = {
       if (enteredHash !== storedHash) return null;
     }
 
+    const enteredTrimmed = passwordPlain.trim();
+    const isDefaultSeed = enteredTrimmed === 'admin' || enteredTrimmed === 'admin123';
+
     const user = state.users[0] || INITIAL_USERS[0];
     user.lastLoginAt = new Date().toISOString();
     return {
@@ -390,7 +396,20 @@ export const dbService = {
       fullName: user.fullName || 'Laboratory Operator',
       role: 'ADMIN',
       token: `sess_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+      mustChangePassword: isDefaultSeed,
     };
+  },
+
+  async changePassword(newPasswordPlain: string): Promise<boolean> {
+    const clean = newPasswordPlain.trim();
+    if (!clean || clean.length < 4) return false;
+    if (isTauri()) {
+      return tauriChangePassword(clean);
+    }
+    const HASH_KEY = 'LAB_ADMIN_PWD_HASH';
+    const newHash = await hashPassword(clean);
+    localStorage.setItem(HASH_KEY, newHash);
+    return true;
   },
 
   // -------------------------------------------------------
@@ -957,6 +976,21 @@ export const dbService = {
       state.saveToStorage();
     }
     return newLicense;
+  },
+
+  async createSqliteBackup(customDest?: string): Promise<string> {
+    if (isTauri()) {
+      return tauriBackupSqlite(customDest);
+    }
+    // Browser fallback: triggers JSON backup download
+    return this.createBackup();
+  },
+
+  async getBackupDirectory(): Promise<string> {
+    if (isTauri()) {
+      return tauriGetBackupDir();
+    }
+    return 'Downloads (Browser)';
   },
 
   async createBackup(): Promise<string> {
