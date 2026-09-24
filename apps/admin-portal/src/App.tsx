@@ -51,8 +51,78 @@ interface Customer {
 
 const RAW_API_URL = (import.meta as any).env?.VITE_LICENSE_API_URL || 'http://localhost:4000';
 const API_BASE = `${RAW_API_URL.replace(/\/$/, '')}/api/v1/admin`;
+const LICENSE_RESET_URL = `${RAW_API_URL.replace(/\/$/, '')}/api/v1/licenses/reset-device`;
+
+// ─────────────────────────────────────────────────────────
+// Admin Key Auth Gate
+// ─────────────────────────────────────────────────────────
+const AdminKeyGate: React.FC<{ onAuth: (key: string) => void }> = ({ onAuth }) => {
+  const [keyInput, setKeyInput] = useState('');
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!keyInput.trim()) return;
+    // Quick validation: try a real API call
+    try {
+      const res = await fetch(`${API_BASE}/customers`, {
+        headers: { 'X-Admin-Key': keyInput.trim() },
+      });
+      if (res.ok) {
+        sessionStorage.setItem('ADMIN_API_KEY', keyInput.trim());
+        onAuth(keyInput.trim());
+      } else {
+        setError('Invalid admin key. Check your ADMIN_API_KEY environment variable.');
+      }
+    } catch {
+      setError('Cannot connect to license API. Is the server running?');
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
+      <div className="w-full max-w-sm bg-slate-900 border border-slate-700 rounded-2xl p-8 shadow-2xl">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 rounded-xl bg-teal-500/20 border border-teal-500/40 flex items-center justify-center text-teal-400">
+            <ShieldCheck className="w-5 h-5" />
+          </div>
+          <div>
+            <h1 className="text-sm font-bold text-white">Admin Portal</h1>
+            <p className="text-[11px] text-slate-400">MediLab License Management</p>
+          </div>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-slate-300 mb-1">Admin API Key</label>
+            <input
+              type="password"
+              value={keyInput}
+              onChange={(e) => setKeyInput(e.target.value)}
+              placeholder="Enter your ADMIN_API_KEY..."
+              className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-teal-500"
+              autoFocus
+            />
+          </div>
+          {error && (
+            <div className="flex items-center gap-2 text-xs text-rose-400">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+          <button
+            type="submit"
+            className="w-full py-2 bg-teal-600 hover:bg-teal-500 text-white text-sm font-semibold rounded-lg transition"
+          >
+            Authenticate
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+};
 
 export const App: React.FC = () => {
+  const [adminKey, setAdminKey] = useState<string>(() => sessionStorage.getItem('ADMIN_API_KEY') || '');
   const [licenses, setLicenses] = useState<License[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [activeTab, setActiveTab] = useState<'licenses' | 'customers'>('licenses');
@@ -66,16 +136,28 @@ export const App: React.FC = () => {
   const [newPlan, setNewPlan] = useState<'MONTHLY' | 'ANNUAL' | 'LIFETIME'>('ANNUAL');
   const [newMaxDevices, setNewMaxDevices] = useState(1);
 
+  const authHeaders = { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey };
+
   useEffect(() => {
-    loadData();
-  }, []);
+    if (adminKey) loadData();
+  }, [adminKey]);
+
+  if (!adminKey) {
+    return <AdminKeyGate onAuth={setAdminKey} />;
+  }
 
   const loadData = async () => {
     try {
       const [licRes, custRes] = await Promise.all([
-        fetch(`${API_BASE}/licenses`),
-        fetch(`${API_BASE}/customers`),
+        fetch(`${API_BASE}/licenses`, { headers: authHeaders }),
+        fetch(`${API_BASE}/customers`, { headers: authHeaders }),
       ]);
+      if (licRes.status === 401) {
+        // Key was invalidated on server — clear and re-prompt
+        sessionStorage.removeItem('ADMIN_API_KEY');
+        setAdminKey('');
+        return;
+      }
       if (licRes.ok && custRes.ok) {
         const lics = await licRes.json();
         const custs = await custRes.json();
@@ -86,49 +168,7 @@ export const App: React.FC = () => {
         }
       }
     } catch {
-      // Fallback mock data if server not running directly
-      setCustomers([
-        { id: 'cust_01', name: 'MediLab Diagnostic Center', contactName: 'Dr. S. K. Raman', email: 'contact@medilabdiagnostics.com', phone: '+91 98765 43210', status: 'ACTIVE' },
-        { id: 'cust_02', name: 'Apex Clinical Pathology Lab', contactName: 'Priya Mehta', email: 'info@apexlabs.com', phone: '+91 91234 56789', status: 'ACTIVE' },
-      ]);
-      setLicenses([
-        {
-          id: 'lic_01',
-          customerId: 'cust_01',
-          customerName: 'MediLab Diagnostic Center',
-          licenseKey: 'LAB-2026-ABCD-1234',
-          plan: 'ANNUAL',
-          status: 'ACTIVE',
-          maxDevices: 1,
-          activeDevicesCount: 1,
-          expiresAt: new Date(Date.now() + 86400000 * 365).toISOString(),
-          createdAt: new Date().toISOString(),
-          devices: [
-            {
-              id: 'dev_01',
-              licenseId: 'lic_01',
-              fingerprintHash: 'SHA256:7e8b91a2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6',
-              deviceName: 'LAB-FRONTDESK-01 (Win11)',
-              activatedAt: new Date().toISOString(),
-              lastSeenAt: new Date().toISOString(),
-              status: 'ACTIVE',
-            },
-          ],
-        },
-        {
-          id: 'lic_02',
-          customerId: 'cust_01',
-          customerName: 'MediLab Diagnostic Center',
-          licenseKey: 'LAB-2026-PRO1-9821',
-          plan: 'ANNUAL',
-          status: 'ACTIVE',
-          maxDevices: 2,
-          activeDevicesCount: 1,
-          expiresAt: new Date(Date.now() + 86400000 * 300).toISOString(),
-          createdAt: new Date().toISOString(),
-          devices: [],
-        },
-      ]);
+      console.warn('Could not reach license API. Check server status.');
     }
   };
 
@@ -143,7 +183,7 @@ export const App: React.FC = () => {
     try {
       const res = await fetch(`${API_BASE}/licenses`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders,
         body: JSON.stringify({
           customerId: newCustomerId,
           plan: newPlan,
@@ -153,40 +193,26 @@ export const App: React.FC = () => {
       if (res.ok) {
         await loadData();
         setShowCreateModal(false);
+      } else {
+        console.error('Failed to create license:', await res.text());
       }
-    } catch {
-      // Local fallback
-      const cust = customers.find((c) => c.id === newCustomerId);
-      const newLic: License = {
-        id: `lic_${Date.now()}`,
-        customerId: newCustomerId,
-        customerName: cust?.name || 'Customer',
-        licenseKey: `LAB-2026-${newPlan.substring(0, 4)}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
-        plan: newPlan,
-        status: 'ACTIVE',
-        maxDevices: newMaxDevices,
-        activeDevicesCount: 0,
-        expiresAt: newPlan === 'LIFETIME' ? null : new Date(Date.now() + 86400000 * 365).toISOString(),
-        createdAt: new Date().toISOString(),
-        devices: [],
-      };
-      setLicenses([newLic, ...licenses]);
-      setShowCreateModal(false);
+    } catch (err) {
+      console.error('Network error creating license:', err);
     }
   };
 
   const handleConfirmDeviceReset = async () => {
     if (!resetModalData) return;
     try {
-      await fetch('http://localhost:4000/api/v1/licenses/reset-device', {
+      await fetch(LICENSE_RESET_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders,
         body: JSON.stringify({
           licenseKey: resetModalData.licenseKey,
           deviceId: resetModalData.device.id,
         }),
       });
-    } catch {}
+    } catch { /* silent — local state update happens below */ }
 
     // Update state locally
     const updated = licenses.map((l) => {
@@ -228,6 +254,13 @@ export const App: React.FC = () => {
         <div className="flex items-center gap-3">
           <span className="text-xs text-slate-400">Vendor Console: <b className="text-slate-200">Admin Operator</b></span>
           <div className="h-2 w-2 rounded-full bg-emerald-400 ring-2 ring-emerald-400/20" />
+          <button
+            onClick={() => { sessionStorage.removeItem('ADMIN_API_KEY'); setAdminKey(''); }}
+            className="text-xs text-slate-500 hover:text-rose-400 transition px-2 py-1 rounded hover:bg-rose-950/40"
+            title="Sign out"
+          >
+            Sign out
+          </button>
         </div>
       </header>
 

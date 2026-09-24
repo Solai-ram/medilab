@@ -1,4 +1,6 @@
 import crypto from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
 
 export interface LicenseTokenPayload {
   licenseId: string;
@@ -14,21 +16,70 @@ export interface LicenseTokenPayload {
 export interface SignedLicenseToken {
   payload: LicenseTokenPayload;
   signature: string; // Base64-encoded Ed25519 signature
-  publicKey: string; // Base64-encoded Ed25519 public key
+  publicKey: string; // PEM-encoded Ed25519 public key
 }
 
-// Generate persistent or runtime keypair
-let keyPair: crypto.KeyPairSyncResult<string, string>;
+// ─────────────────────────────────────────────────────────
+// KEY LOADING — persistent across server restarts
+// ─────────────────────────────────────────────────────────
 
-try {
-  keyPair = crypto.generateKeyPairSync('ed25519', {
+function loadOrGenerateKeyPair(): { privateKey: string; publicKey: string } {
+  const privateKeyPem = process.env.PRIVATE_KEY_PEM;
+  const publicKeyPem = process.env.PUBLIC_KEY_PEM;
+
+  if (privateKeyPem && publicKeyPem) {
+    console.log('🔑 Ed25519 keys loaded from environment variables.');
+    return {
+      privateKey: privateKeyPem.replace(/\\n/g, '\n'),
+      publicKey: publicKeyPem.replace(/\\n/g, '\n'),
+    };
+  }
+
+  // Try loading from a local keys file (dev / self-hosted mode)
+  const keysFilePath = path.resolve(process.cwd(), '.keys.json');
+  if (fs.existsSync(keysFilePath)) {
+    try {
+      const raw = JSON.parse(fs.readFileSync(keysFilePath, 'utf-8'));
+      if (raw.privateKey && raw.publicKey) {
+        console.log('🔑 Ed25519 keys loaded from .keys.json (dev mode).');
+        return raw;
+      }
+    } catch (e) {
+      console.warn('⚠️  Could not parse .keys.json, regenerating...');
+    }
+  }
+
+  // Generate a fresh pair and save/print it
+  console.warn('⚠️  No persistent Ed25519 keys found. Generating a new pair...');
+  const pair = crypto.generateKeyPairSync('ed25519', {
     publicKeyEncoding: { type: 'spki', format: 'pem' },
     privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
   });
-} catch (e) {
-  console.error('Failed to generate Ed25519 keys:', e);
-  throw e;
+
+  // Save to .keys.json for local dev persistence (git-ignored via .gitignore *.pem / *.key)
+  try {
+    fs.writeFileSync(keysFilePath, JSON.stringify(pair, null, 2), { mode: 0o600 });
+    console.log('✅ New keypair saved to .keys.json (local dev only).');
+  } catch {
+    // Read-only filesystem (e.g. Cloud Run) — print for operator to copy into secrets
+    console.log('');
+    console.log('═══════════════════════════════════════════════════════════');
+    console.log('  NEW Ed25519 KEYPAIR — COPY INTO DEPLOYMENT SECRETS NOW!');
+    console.log('  Set these as environment variables on your platform:');
+    console.log('');
+    console.log('  PRIVATE_KEY_PEM (single-line, \\n escaped):');
+    console.log('  ' + pair.privateKey.replace(/\n/g, '\\n'));
+    console.log('');
+    console.log('  PUBLIC_KEY_PEM (single-line, \\n escaped):');
+    console.log('  ' + pair.publicKey.replace(/\n/g, '\\n'));
+    console.log('═══════════════════════════════════════════════════════════');
+    console.log('');
+  }
+
+  return pair;
 }
+
+const keyPair = loadOrGenerateKeyPair();
 
 export const getPublicKeyPem = (): string => keyPair.publicKey;
 

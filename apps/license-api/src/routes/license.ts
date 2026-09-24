@@ -136,7 +136,7 @@ export const licenseRoutes: FastifyPluginAsync = async (server: FastifyInstance)
       });
     }
 
-    device.lastSeenAt = new Date().toISOString();
+    licenseDb.updateDeviceLastSeen(deviceFingerprint, license.id);
 
     const graceMs = 60 * 24 * 60 * 60 * 1000;
     const graceDate = new Date(Date.now() + graceMs);

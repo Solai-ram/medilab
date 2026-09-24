@@ -26,15 +26,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(JSON.parse(saved));
       } catch (e) {
         console.warn('Session parse error:', e);
+        localStorage.removeItem('LAB_SESSION_USER');
       }
-    } else if (!isExplicitLogout && !saved) {
-      // Default operator session for convenience on initial app install
-      dbService.login('admin', 'admin123').then((initialUser) => {
-        if (initialUser) {
-          setUser(initialUser);
-          localStorage.setItem('LAB_SESSION_USER', JSON.stringify(initialUser));
-        }
-      });
     }
     setIsLoading(false);
   }, []);

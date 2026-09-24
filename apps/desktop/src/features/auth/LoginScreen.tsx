@@ -26,8 +26,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ settings }) => {
   const { login } = useAuth();
   const { theme, toggleTheme } = useTheme();
 
-  const [username, setUsername] = useState('admin');
-  const [password, setPassword] = useState('admin123');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);

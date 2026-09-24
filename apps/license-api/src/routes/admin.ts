@@ -1,8 +1,9 @@
+import crypto from 'node:crypto';
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
-import { licenseDb } from '../db/index.js';
+import { licenseDb, LicenseRecord } from '../db/index.js';
 
 export const adminRoutes: FastifyPluginAsync = async (server: FastifyInstance) => {
-  // List all licenses with registered devices
+  // ─── List all licenses with registered devices ───────────
   server.get('/licenses', async () => {
     return licenseDb.licenses.map((lic) => {
       const devices = licenseDb.getActiveDevicesForLicense(lic.id);
@@ -14,12 +15,12 @@ export const adminRoutes: FastifyPluginAsync = async (server: FastifyInstance) =
     });
   });
 
-  // List all customers
+  // ─── List all customers ──────────────────────────────────
   server.get('/customers', async () => {
     return licenseDb.customers;
   });
 
-  // Create new customer license
+  // ─── Create new customer license ─────────────────────────
   server.post<{
     Body: {
       customerId: string;
@@ -34,28 +35,29 @@ export const adminRoutes: FastifyPluginAsync = async (server: FastifyInstance) =
       return reply.code(404).send({ error: 'Customer not found' });
     }
 
-    const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
-    const licenseKey = `LAB-2026-${plan.substring(0, 4)}-${randomSuffix}`;
+    // Cryptographically secure 4-byte suffix (8 hex chars, uppercased)
+    const secureSuffix = crypto.randomBytes(4).toString('hex').toUpperCase();
+    const licenseKey = `LAB-${new Date().getFullYear()}-${plan.substring(0, 4)}-${secureSuffix}`;
 
     const expiresAt =
       plan === 'LIFETIME'
         ? null
         : new Date(Date.now() + 86400000 * (durationDays || 365)).toISOString();
 
-    const newLicense = {
-      id: `lic_${Date.now()}`,
+    const newLicense: LicenseRecord = {
+      id: `lic_${Date.now()}_${crypto.randomBytes(2).toString('hex')}`,
       customerId,
       customerName: customer.name,
       licenseKey,
       plan,
-      status: 'ACTIVE' as const,
+      status: 'ACTIVE',
       maxDevices: maxDevices || 1,
       expiresAt,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
 
-    licenseDb.licenses.push(newLicense);
+    licenseDb.addLicense(newLicense);
     licenseDb.recordEvent(newLicense.id, 'CREATED', { plan, maxDevices });
 
     return {
@@ -64,18 +66,18 @@ export const adminRoutes: FastifyPluginAsync = async (server: FastifyInstance) =
     };
   });
 
-  // Suspend license
+  // ─── Suspend license ─────────────────────────────────────
   server.post<{
     Params: { id: string };
   }>('/licenses/:id/suspend', async (request, reply) => {
     const lic = licenseDb.licenses.find((l) => l.id === request.params.id);
     if (!lic) return reply.code(404).send({ error: 'License not found' });
-    lic.status = 'SUSPENDED';
+    licenseDb.updateLicense(lic.id, { status: 'SUSPENDED' });
     licenseDb.recordEvent(lic.id, 'SUSPENDED', {});
     return { success: true, message: `License ${lic.licenseKey} suspended.` };
   });
 
-  // Extend license expiration
+  // ─── Extend license expiration ───────────────────────────
   server.post<{
     Params: { id: string };
     Body: { additionalDays: number };
@@ -83,12 +85,13 @@ export const adminRoutes: FastifyPluginAsync = async (server: FastifyInstance) =
     const lic = licenseDb.licenses.find((l) => l.id === request.params.id);
     if (!lic) return reply.code(404).send({ error: 'License not found' });
     const currentExpiry = lic.expiresAt ? new Date(lic.expiresAt).getTime() : Date.now();
-    lic.expiresAt = new Date(currentExpiry + 86400000 * (request.body.additionalDays || 365)).toISOString();
-    licenseDb.recordEvent(lic.id, 'EXTENDED', { newExpiresAt: lic.expiresAt });
-    return { success: true, license: lic };
+    const newExpiresAt = new Date(currentExpiry + 86400000 * (request.body.additionalDays || 365)).toISOString();
+    licenseDb.updateLicense(lic.id, { expiresAt: newExpiresAt });
+    licenseDb.recordEvent(lic.id, 'EXTENDED', { newExpiresAt });
+    return { success: true, license: { ...lic, expiresAt: newExpiresAt } };
   });
 
-  // Audit Events
+  // ─── Audit Events ────────────────────────────────────────
   server.get('/events', async () => {
     return licenseDb.events;
   });

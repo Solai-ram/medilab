@@ -28,6 +28,14 @@ export const isTauri = (): boolean => {
 // =========================================================
 // INITIAL MOCK DATA (mirrors database/migrations/002_seed_data.sql)
 // =========================================================
+// =========================================================
+// INITIAL USER DATA
+// =========================================================
+
+// Default admin password hash (SHA-256 of 'admin123').
+// Users can change this via Settings. NEVER store plaintext.
+const DEFAULT_ADMIN_PASSWORD_HASH = 'a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3'; // admin123
+
 const INITIAL_USERS: User[] = [
   {
     id: 'usr_admin_01',
@@ -40,6 +48,12 @@ const INITIAL_USERS: User[] = [
     lastLoginAt: new Date().toISOString(),
   },
 ];
+
+async function hashPassword(password: string): Promise<string> {
+  const enc = new TextEncoder();
+  const buf = await crypto.subtle.digest('SHA-256', enc.encode(password));
+  return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('');
+}
 
 const INITIAL_CATEGORIES: ProcedureCategory[] = [
   { id: 'cat_hematology', name: 'Hematology', status: 'ACTIVE', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
@@ -336,16 +350,20 @@ export const dbService = {
   // -------------------------------------------------------
   // AUTH
   // -------------------------------------------------------
-  async login(username: string, passwordHashOrPlain: string): Promise<SessionUser | null> {
+  async login(username: string, passwordPlain: string): Promise<SessionUser | null> {
     const cleanUser = (username || '').trim().toLowerCase();
-    const cleanPass = (passwordHashOrPlain || '').trim().toLowerCase();
+    if (cleanUser !== 'admin') return null;
 
-    // Single unified login check: accept 'admin', 'operator', 'medilab', or 'cashier'
-    const valid =
-      (cleanUser === 'admin' || cleanUser === 'operator' || cleanUser === 'medilab' || cleanUser === 'cashier') &&
-      (cleanPass === 'admin123' || cleanPass === 'admin' || cleanPass === 'medilab' || cleanPass === 'cashier123');
+    // Load stored hash or seed the default on first run
+    const HASH_KEY = 'LAB_ADMIN_PWD_HASH';
+    let storedHash = localStorage.getItem(HASH_KEY);
+    if (!storedHash) {
+      localStorage.setItem(HASH_KEY, DEFAULT_ADMIN_PASSWORD_HASH);
+      storedHash = DEFAULT_ADMIN_PASSWORD_HASH;
+    }
 
-    if (!valid) return null;
+    const enteredHash = await hashPassword(passwordPlain.trim());
+    if (enteredHash !== storedHash) return null;
 
     const user = state.users[0] || INITIAL_USERS[0];
     user.lastLoginAt = new Date().toISOString();
