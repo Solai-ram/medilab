@@ -40,6 +40,17 @@ export const isTauri = (): boolean => {
   return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 };
 
+// Check if a commercial license is currently active and within valid period
+export function isLicenseActive(license: LicenseState | null | undefined): boolean {
+  if (!license || !license.isActivated) return false;
+  if (license.status !== 'ACTIVE') return false;
+  if (license.plan !== 'LIFETIME' && license.expiresAt) {
+    const exp = new Date(license.expiresAt).getTime();
+    if (Date.now() > exp) return false;
+  }
+  return true;
+}
+
 // =========================================================
 // INITIAL MOCK DATA (mirrors database/migrations/002_seed_data.sql)
 // =========================================================
@@ -49,7 +60,7 @@ export const isTauri = (): boolean => {
 
 // Default admin password hash (SHA-256 of 'admin123').
 // Users can change this via Settings. NEVER store plaintext.
-const DEFAULT_ADMIN_PASSWORD_HASH = 'a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3'; // admin123
+const DEFAULT_ADMIN_PASSWORD_HASH = '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9'; // admin123
 
 const INITIAL_USERS: User[] = [
   {
@@ -159,16 +170,16 @@ class StorageState {
   bills: Bill[] = [];
   settings: AppSettings = INITIAL_SETTINGS;
   license: LicenseState = {
-    isActivated: true,
-    licenseKey: 'LAB-2026-PRO1-9821',
-    customerName: 'MediLab Diagnostic Center',
+    isActivated: false,
+    licenseKey: '',
+    customerName: '',
     plan: 'ANNUAL',
-    status: 'ACTIVE',
-    expiresAt: new Date(Date.now() + 86400000 * 320).toISOString(),
-    offlineGraceUntil: new Date(Date.now() + 86400000 * 60).toISOString(),
-    deviceFingerprint: 'SHA256:7e8b91a2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6',
-    deviceName: 'LAB-FRONTDESK-01 (Win11)',
-    lastValidatedAt: new Date().toISOString(),
+    status: 'UNLICENSED',
+    expiresAt: undefined,
+    offlineGraceUntil: undefined,
+    deviceFingerprint: '',
+    deviceName: '',
+    lastValidatedAt: undefined,
   };
 
   constructor() {
@@ -198,7 +209,10 @@ class StorageState {
               : DEFAULT_QUICK_TESTS,
           };
         }
-        if (parsed.license) this.license = parsed.license;
+        // Purge obsolete hardcoded demo license if present in client localStorage
+        if (parsed.license && parsed.license.licenseKey && parsed.license.licenseKey !== 'LAB-2026-PRO1-9821') {
+          this.license = parsed.license;
+        }
       }
     } catch (e) {
       console.warn('Could not read from localStorage:', e);
@@ -444,6 +458,10 @@ export const dbService = {
   },
 
   async createPatient(input: CreatePatientInput): Promise<Patient> {
+    const currentLicense = await this.getLicenseState();
+    if (!isLicenseActive(currentLicense)) {
+      throw new Error('LICENSE_REQUIRED: Commercial license is not active or has expired. Please activate your license to register patients.');
+    }
     if (isTauri()) {
       // Count existing patients from SQLite for sequential code
       const rows = await tauriPatients.getAll();
@@ -582,6 +600,10 @@ export const dbService = {
   },
 
   async upsertProcedure(input: CreateProcedureInput & { id?: string }): Promise<Procedure> {
+    const currentLicense = await this.getLicenseState();
+    if (!isLicenseActive(currentLicense)) {
+      throw new Error('LICENSE_REQUIRED: Commercial license is not active or has expired. Please activate your license to update procedures.');
+    }
     const category = state.categories.find((c) => c.id === input.categoryId);
     const categoryName = category ? category.name : 'General';
 
@@ -635,6 +657,10 @@ export const dbService = {
   // BILLING ENGINE & INVOICE MANAGEMENT
   // -------------------------------------------------------
   async createBill(input: CreateBillInput, currentUser: SessionUser): Promise<Bill> {
+    const currentLicense = await this.getLicenseState();
+    if (!isLicenseActive(currentLicense)) {
+      throw new Error('LICENSE_REQUIRED: Commercial license is not active or has expired. Please activate your license to generate bills.');
+    }
     const patient = state.patients.find((p) => p.id === input.patientId);
     if (!patient) throw new Error('Patient not found');
 
@@ -929,53 +955,64 @@ export const dbService = {
   async getLicenseState(): Promise<LicenseState> {
     if (isTauri()) {
       const lic = await tauriGetLicense();
-      if (lic && lic.isActivated) return lic as unknown as LicenseState;
+      if (lic) {
+        return {
+          isActivated: Boolean(lic.isActivated),
+          licenseKey: (lic.licenseKey as string) || '',
+          customerName: (lic.customerName as string) || '',
+          plan: (lic.plan as any) || 'ANNUAL',
+          status: (lic.status as any) || (lic.isActivated ? 'ACTIVE' : 'UNLICENSED'),
+          expiresAt: (lic.expiresAt as string) || undefined,
+          offlineGraceUntil: (lic.offlineGraceUntil as string) || undefined,
+          deviceFingerprint: (lic.deviceFingerprint as string) || '',
+          deviceName: (lic.deviceName as string) || '',
+          lastValidatedAt: (lic.lastValidatedAt as string) || undefined,
+        };
+      }
     }
     return { ...state.license };
   },
 
-  async activateLicense(key: string): Promise<LicenseState> {
+  async activateLicense(key: string): Promise<{ success: boolean; license?: LicenseState; message?: string }> {
     const cleanKey = key.toUpperCase().trim();
-    const onlineRes = await activateOnlineLicense(cleanKey, 'LAB-FRONTDESK-PC');
+    if (!cleanKey) {
+      return { success: false, message: 'Please enter a valid license key.' };
+    }
 
     // Get hardware fingerprint — use real Rust-based fingerprint in Tauri
     const fp = isTauri()
       ? (await tauriGetHardwareFingerprint()) || await getDeviceFingerprint()
       : await getDeviceFingerprint();
 
-    const newLicense: LicenseState = onlineRes.success && onlineRes.license
-      ? {
-          isActivated: true,
-          licenseKey: cleanKey,
-          customerName: onlineRes.license.customerName,
-          plan: onlineRes.license.plan,
-          status: 'ACTIVE',
-          expiresAt: onlineRes.license.expiresAt || undefined,
-          offlineGraceUntil: onlineRes.license.offlineGraceUntil,
-          deviceFingerprint: onlineRes.signedToken?.payload.deviceFingerprint || fp,
-          deviceName: 'LAB-FRONTDESK-PC',
-          lastValidatedAt: new Date().toISOString(),
-        }
-      : {
-          isActivated: true,
-          licenseKey: cleanKey,
-          customerName: state.settings.labName,
-          plan: 'ANNUAL',
-          status: 'ACTIVE',
-          expiresAt: new Date(Date.now() + 86400000 * 365).toISOString(),
-          offlineGraceUntil: new Date(Date.now() + 86400000 * 60).toISOString(),
-          deviceFingerprint: fp,
-          deviceName: 'LAB-FRONTDESK-PC',
-          lastValidatedAt: new Date().toISOString(),
-        };
+    const onlineRes = await activateOnlineLicense(cleanKey, 'LAB-FRONTDESK-PC');
 
-    if (isTauri()) {
-      await tauriSaveLicense(newLicense as unknown as Record<string, unknown>);
-    } else {
-      state.license = newLicense;
-      state.saveToStorage();
+    if (onlineRes.success && onlineRes.license) {
+      const newLicense: LicenseState = {
+        isActivated: true,
+        licenseKey: cleanKey,
+        customerName: onlineRes.license.customerName,
+        plan: onlineRes.license.plan,
+        status: 'ACTIVE',
+        expiresAt: onlineRes.license.expiresAt || undefined,
+        offlineGraceUntil: onlineRes.license.offlineGraceUntil,
+        deviceFingerprint: onlineRes.signedToken?.payload.deviceFingerprint || fp,
+        deviceName: 'LAB-FRONTDESK-PC',
+        lastValidatedAt: new Date().toISOString(),
+      };
+
+      if (isTauri()) {
+        await tauriSaveLicense(newLicense as unknown as Record<string, unknown>);
+      } else {
+        state.license = newLicense;
+        state.saveToStorage();
+      }
+      return { success: true, license: newLicense };
     }
-    return newLicense;
+
+    return {
+      success: false,
+      message: onlineRes.message || 'License activation failed. Please check the license key or internet connection.',
+    };
   },
 
   async createSqliteBackup(customDest?: string): Promise<string> {

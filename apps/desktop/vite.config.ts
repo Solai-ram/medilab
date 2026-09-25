@@ -16,6 +16,9 @@ export default defineConfig({
   server: {
     port: 1420,
     strictPort: true,
+    watch: {
+      ignored: ['**/src-tauri/**'],
+    },
   },
   // To access env variables prefixed with VITE_
   envPrefix: ['VITE_', 'TAURI_'],

@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { dbService } from './services/db';
-import { AppSettings, Patient } from '@lab/shared-types';
+import { dbService, isLicenseActive } from './services/db';
+import { AppSettings, Patient, LicenseState } from '@lab/shared-types';
 import { useAuth } from './features/auth/AuthContext';
 import { LoginScreen } from './features/auth/LoginScreen';
 import { FirstRunPasswordScreen } from './features/auth/FirstRunPasswordScreen';
+import { LicenseActivationScreen } from './features/auth/LicenseActivationScreen';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 import { BillingView } from './features/billing/BillingView';
@@ -21,17 +22,26 @@ export const App: React.FC = () => {
     return saved !== null ? saved === 'true' : true;
   });
   const [settings, setSettings] = useState<AppSettings | null>(null);
+  const [license, setLicense] = useState<LicenseState | null>(null);
+  const [isLicenseLoading, setIsLicenseLoading] = useState(true);
   const [selectedPatientForBilling, setSelectedPatientForBilling] = useState<Patient | null>(null);
 
   useEffect(() => {
-    dbService.getSettings().then(setSettings);
+    Promise.all([
+      dbService.getSettings(),
+      dbService.getLicenseState(),
+    ]).then(([s, lic]) => {
+      setSettings(s);
+      setLicense(lic);
+      setIsLicenseLoading(false);
+    });
   }, []);
 
   useEffect(() => {
     localStorage.setItem('medilab-sidebar-open', String(isSidebarOpen));
   }, [isSidebarOpen]);
 
-  if (!settings || isAuthLoading) {
+  if (!settings || isAuthLoading || isLicenseLoading) {
     return (
       <div className="h-screen w-screen flex items-center justify-center bg-slate-950 text-teal-400 font-mono text-sm">
         Initializing MediLab Billing System...
@@ -39,12 +49,22 @@ export const App: React.FC = () => {
     );
   }
 
-  // Workstation Lock Screen if not signed in
+  // 1. Commercial License Gate — Mandatory before login, patients, and billing
+  if (!isLicenseActive(license)) {
+    return (
+      <LicenseActivationScreen
+        currentLicense={license}
+        onActivated={(newLic) => setLicense(newLic)}
+      />
+    );
+  }
+
+  // 2. Workstation Lock Screen if not signed in
   if (!user) {
     return <LoginScreen settings={settings} />;
   }
 
-  // Force first-run password setup if administrator password is still default seed
+  // 3. Force first-run password setup if administrator password is still default seed
   if (user.mustChangePassword) {
     return <FirstRunPasswordScreen />;
   }

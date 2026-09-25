@@ -257,7 +257,7 @@ export interface ProcedureRevenueRow {
 // LICENSING & DEVICE BINDING
 // ==========================================
 export type LicensePlan = 'MONTHLY' | 'ANNUAL' | 'LIFETIME';
-export type LicenseStatus = 'ACTIVE' | 'SUSPENDED' | 'REVOKED' | 'EXPIRED';
+export type LicenseStatus = 'ACTIVE' | 'SUSPENDED' | 'REVOKED' | 'EXPIRED' | 'UNLICENSED';
 
 export interface LicenseTokenPayload {
   licenseId: string;

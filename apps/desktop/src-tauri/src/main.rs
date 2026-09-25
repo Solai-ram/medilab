@@ -177,7 +177,7 @@ fn init_db(conn: &Connection) -> SqlResult<()> {
     if count == 0 {
         let now = chrono::Utc::now().to_rfc3339();
         // SHA-256 of 'admin123'
-        let default_hash = "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3";
+        let default_hash = "240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9";
         conn.execute(
             "INSERT OR IGNORE INTO users (id, username, full_name, role, status, pwd_hash, created_at, updated_at)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
@@ -320,10 +320,60 @@ fn db_query(sql: String, args: Vec<Value>, state: tauri::State<DbState>) -> Valu
     }
 }
 
+fn is_license_valid(conn: &Connection) -> bool {
+    let result: Result<(i64, Option<String>, Option<String>, Option<String>), _> = conn.query_row(
+        "SELECT is_activated, expires_at, status, plan FROM license_state WHERE id = 'singleton'",
+        [],
+        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+    );
+
+    match result {
+        Ok((is_act, expires_at, status, plan)) => {
+            if is_act != 1 {
+                return false;
+            }
+            if let Some(st) = status {
+                if st != "ACTIVE" {
+                    return false;
+                }
+            }
+            let is_lifetime = plan.as_deref() == Some("LIFETIME");
+            if !is_lifetime {
+                if let Some(exp) = expires_at {
+                    if let Ok(exp_date) = chrono::DateTime::parse_from_rfc3339(&exp) {
+                        if chrono::Utc::now() > exp_date {
+                            return false;
+                        }
+                    }
+                }
+            }
+            true
+        }
+        Err(_) => false,
+    }
+}
+
 /// Generic execute interface (INSERT/UPDATE/DELETE): returns rows affected
 #[tauri::command]
 fn db_execute(sql: String, args: Vec<Value>, state: tauri::State<DbState>) -> Value {
     let conn = state.0.lock().unwrap();
+    let upper = sql.to_uppercase();
+    let is_protected = upper.contains("INSERT INTO PATIENTS")
+        || upper.contains("UPDATE PATIENTS")
+        || upper.contains("INSERT INTO BILLS")
+        || upper.contains("UPDATE BILLS")
+        || upper.contains("INSERT INTO BILL_ITEMS")
+        || upper.contains("INSERT INTO BILL_PAYMENTS")
+        || upper.contains("INSERT INTO PROCEDURES")
+        || upper.contains("UPDATE PROCEDURES");
+
+    if is_protected && !is_license_valid(&conn) {
+        return json!({
+            "ok": false,
+            "error": "LICENSE_REQUIRED: Commercial license is not active or has expired. Please activate your license to perform billing operations."
+        });
+    }
+
     match execute_mutation(&conn, &sql, &args) {
         Ok(affected) => json!({ "ok": true, "changes": affected }),
         Err(e) => json!({ "ok": false, "error": e.to_string() }),
@@ -546,6 +596,9 @@ fn db_export_backup(state: tauri::State<DbState>) -> Value {
 #[tauri::command]
 fn db_backup_sqlite(state: tauri::State<DbState>, custom_dest: Option<String>) -> Result<String, String> {
     let conn = state.0.lock().unwrap();
+    if !is_license_valid(&conn) {
+        return Err("LICENSE_REQUIRED: Active commercial license required to export backups.".to_string());
+    }
     let target = match custom_dest {
         Some(p) if !p.trim().is_empty() => PathBuf::from(p),
         _ => {

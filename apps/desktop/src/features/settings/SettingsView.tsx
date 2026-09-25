@@ -189,9 +189,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSettings
 
   const handleActivateLicense = async () => {
     if (!licenseKeyInput.trim()) return;
-    const activated = await dbService.activateLicense(licenseKeyInput.trim());
-    setLicense(activated);
-    setLicenseKeyInput('');
+    const res = await dbService.activateLicense(licenseKeyInput.trim());
+    if (res.success && res.license) {
+      setLicense(res.license);
+      setLicenseKeyInput('');
+      setSaveStatus('License activated successfully!');
+      setTimeout(() => setSaveStatus(null), 3000);
+    } else {
+      setSaveStatus(res.message || 'Activation failed');
+      setTimeout(() => setSaveStatus(null), 4000);
+    }
   };
 
   return (
