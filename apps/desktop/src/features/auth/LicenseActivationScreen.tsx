@@ -47,13 +47,20 @@ export const LicenseActivationScreen: React.FC<LicenseActivationScreenProps> = (
     new Date(currentLicense.expiresAt).getTime() < Date.now()
   );
 
+  const installationId = fingerprint && fingerprint.startsWith('SHA256:')
+    ? `MED-${fingerprint.replace('SHA256:', '').substring(0, 8).toUpperCase()}`
+    : 'MED-PENDING';
+
   const handleCopyDetails = () => {
     if (!fingerprint || fingerprint === 'Detecting hardware...') return;
     const text = [
-      '--- MediLab Diagnostic Workstation Registration ---',
-      `Center Name: ${centerNameInput.trim() || '[Not specified]'}`,
-      `City / Location: ${locationInput.trim() || '[Not specified]'}`,
+      'MediLab License Activation Request',
+      `Center: ${centerNameInput.trim() || '[Specify Center Name]'}`,
+      `Location: ${locationInput.trim() || '[Specify City]'}`,
+      `Installation ID: ${installationId}`,
       `Hardware Fingerprint: ${fingerprint}`,
+      '',
+      'Please issue my MediLab workstation license key.',
     ].join('\n');
     navigator.clipboard.writeText(text);
     setCopiedDetails(true);
@@ -156,11 +163,15 @@ export const LicenseActivationScreen: React.FC<LicenseActivationScreenProps> = (
             </div>
           </div>
 
-          <div className="pt-2 border-t border-slate-800/60">
-            <div className="flex items-center justify-between text-xs mb-1.5">
+          <div className="pt-2 border-t border-slate-800/60 space-y-1.5">
+            <div className="flex items-center justify-between text-[11px]">
+              <span className="text-slate-400 font-medium">Installation ID:</span>
+              <span className="font-mono font-bold text-teal-400 bg-slate-900 border border-slate-800 px-2 py-0.5 rounded">{installationId}</span>
+            </div>
+            <div className="flex items-center justify-between text-xs">
               <span className="text-slate-400 flex items-center gap-1.5 text-[11px] font-medium">
                 <Cpu className="w-3.5 h-3.5 text-teal-400" />
-                Workstation Hardware Fingerprint:
+                Hardware Fingerprint:
               </span>
             </div>
             <div className="p-2 bg-slate-900 border border-slate-800 rounded-lg font-mono text-[10px] text-teal-300 break-all select-all">

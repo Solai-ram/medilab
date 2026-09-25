@@ -990,8 +990,9 @@ export const dbService = {
     const onlineRes = await activateOnlineLicense(cleanKey, 'LAB-FRONTDESK-PC');
 
     if (onlineRes.success && onlineRes.license) {
-      const labName = customDetails?.centerName?.trim() || onlineRes.license.customerName;
-      const labAddress = customDetails?.location?.trim() || (onlineRes.license as any).customerLocation || '';
+      // Server is authoritative for customer name & location
+      const labName = onlineRes.license.customerName || customDetails?.centerName?.trim() || 'Diagnostic Center';
+      const labAddress = (onlineRes.license as any).customerLocation || customDetails?.location?.trim() || '';
 
       const newLicense: LicenseState = {
         isActivated: true,
