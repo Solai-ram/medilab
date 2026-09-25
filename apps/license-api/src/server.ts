@@ -23,9 +23,11 @@ if (!ADMIN_API_KEY) {
 // ─────────────────────────────────────────────────────────
 const ALLOWED_ORIGINS_ENV = process.env.ALLOWED_ORIGINS || '';
 const allowedOrigins: (string | RegExp)[] = [
-  // Desktop app Tauri origin
+  // Desktop app Tauri origins (Windows WebView2 uses http://tauri.localhost, macOS uses tauri://localhost)
   'tauri://localhost',
   'https://tauri.localhost',
+  'http://tauri.localhost',
+  /^https?:\/\/tauri\.localhost/,
 ];
 
 if (ALLOWED_ORIGINS_ENV) {
