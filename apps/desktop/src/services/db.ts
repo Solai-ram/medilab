@@ -973,7 +973,10 @@ export const dbService = {
     return { ...state.license };
   },
 
-  async activateLicense(key: string): Promise<{ success: boolean; license?: LicenseState; message?: string }> {
+  async activateLicense(
+    key: string,
+    customDetails?: { centerName?: string; location?: string }
+  ): Promise<{ success: boolean; license?: LicenseState; message?: string }> {
     const cleanKey = key.toUpperCase().trim();
     if (!cleanKey) {
       return { success: false, message: 'Please enter a valid license key.' };
@@ -987,10 +990,13 @@ export const dbService = {
     const onlineRes = await activateOnlineLicense(cleanKey, 'LAB-FRONTDESK-PC');
 
     if (onlineRes.success && onlineRes.license) {
+      const labName = customDetails?.centerName?.trim() || onlineRes.license.customerName;
+      const labAddress = customDetails?.location?.trim() || (onlineRes.license as any).customerLocation || '';
+
       const newLicense: LicenseState = {
         isActivated: true,
         licenseKey: cleanKey,
-        customerName: onlineRes.license.customerName,
+        customerName: labName,
         plan: onlineRes.license.plan,
         status: 'ACTIVE',
         expiresAt: onlineRes.license.expiresAt || undefined,
@@ -1006,6 +1012,15 @@ export const dbService = {
         state.license = newLicense;
         state.saveToStorage();
       }
+
+      // Automatically sync customer's center name & location to app settings / bill headers
+      if (labName) {
+        await this.updateSettings({
+          labName,
+          labAddress: labAddress || undefined,
+        });
+      }
+
       return { success: true, license: newLicense };
     }
 

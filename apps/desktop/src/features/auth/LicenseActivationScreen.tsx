@@ -10,9 +10,11 @@ import {
   Check,
   ArrowRight,
   AlertCircle,
-  Sparkles,
   HelpCircle,
   RefreshCw,
+  Building2,
+  MapPin,
+  Send,
 } from 'lucide-react';
 
 interface LicenseActivationScreenProps {
@@ -25,9 +27,11 @@ export const LicenseActivationScreen: React.FC<LicenseActivationScreenProps> = (
   onActivated,
 }) => {
   const [fingerprint, setFingerprint] = useState<string>('Detecting hardware...');
+  const [centerNameInput, setCenterNameInput] = useState('');
+  const [locationInput, setLocationInput] = useState('');
   const [licenseKeyInput, setLicenseKeyInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [copiedFp, setCopiedFp] = useState(false);
+  const [copiedDetails, setCopiedDetails] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -43,11 +47,17 @@ export const LicenseActivationScreen: React.FC<LicenseActivationScreenProps> = (
     new Date(currentLicense.expiresAt).getTime() < Date.now()
   );
 
-  const handleCopy = () => {
+  const handleCopyDetails = () => {
     if (!fingerprint || fingerprint === 'Detecting hardware...') return;
-    navigator.clipboard.writeText(fingerprint);
-    setCopiedFp(true);
-    setTimeout(() => setCopiedFp(false), 2000);
+    const text = [
+      '--- MediLab Diagnostic Workstation Registration ---',
+      `Center Name: ${centerNameInput.trim() || '[Not specified]'}`,
+      `City / Location: ${locationInput.trim() || '[Not specified]'}`,
+      `Hardware Fingerprint: ${fingerprint}`,
+    ].join('\n');
+    navigator.clipboard.writeText(text);
+    setCopiedDetails(true);
+    setTimeout(() => setCopiedDetails(false), 2500);
   };
 
   const handleActivate = async (e: React.FormEvent) => {
@@ -61,7 +71,10 @@ export const LicenseActivationScreen: React.FC<LicenseActivationScreenProps> = (
     setError(null);
     setIsSubmitting(true);
     try {
-      const res = await dbService.activateLicense(clean);
+      const res = await dbService.activateLicense(clean, {
+        centerName: centerNameInput.trim(),
+        location: locationInput.trim(),
+      });
       if (res.success && res.license && isLicenseActive(res.license)) {
         onActivated(res.license);
       } else {
@@ -82,19 +95,19 @@ export const LicenseActivationScreen: React.FC<LicenseActivationScreenProps> = (
         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-teal-500/10 rounded-full blur-3xl" />
       </div>
 
-      <div className="w-full max-w-lg bg-slate-900/90 border border-slate-800 rounded-3xl p-8 shadow-2xl backdrop-blur-xl relative z-10 space-y-6">
+      <div className="w-full max-w-lg bg-slate-900/90 border border-slate-800 rounded-3xl p-7 shadow-2xl backdrop-blur-xl relative z-10 space-y-5">
         {/* Header Icon & Title */}
-        <div className="flex flex-col items-center text-center space-y-2">
-          <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 mb-1 shadow-inner">
-            <KeyRound className="w-8 h-8" />
+        <div className="flex flex-col items-center text-center space-y-1.5">
+          <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 mb-1 shadow-inner">
+            <KeyRound className="w-6 h-6" />
           </div>
-          <h2 className="text-xl font-bold text-white tracking-wide">
-            {isExpired ? 'Commercial License Expired' : 'Commercial License Required'}
+          <h2 className="text-lg font-bold text-white tracking-wide">
+            {isExpired ? 'Commercial License Expired' : 'Commercial License Registration'}
           </h2>
           <p className="text-xs text-slate-400 max-w-sm">
             {isExpired
-              ? 'Your MediLab subscription has expired. Please enter a valid renewal key to reactivate billing and patient records.'
-              : 'MediLab Diagnostic Billing operates as a commercial licensed workstation. Activate this device to proceed.'}
+              ? 'Your MediLab subscription has expired. Enter a renewal key to reactivate billing and patient records.'
+              : 'Register this workstation to lock your commercial license to this computer.'}
           </p>
         </div>
 
@@ -113,75 +126,85 @@ export const LicenseActivationScreen: React.FC<LicenseActivationScreenProps> = (
           </div>
         ) : null}
 
-        {/* Machine Fingerprint Card */}
-        <div className="p-4 bg-slate-950 border border-slate-800 rounded-2xl space-y-2">
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-slate-400 flex items-center gap-1.5 font-medium">
-              <Cpu className="w-3.5 h-3.5 text-teal-400" />
-              Workstation Hardware Fingerprint:
-            </span>
-            <button
-              type="button"
-              onClick={handleCopy}
-              className="flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-teal-300 font-mono transition border border-slate-700"
-            >
-              {copiedFp ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-              <span>{copiedFp ? 'Copied!' : 'Copy Fingerprint'}</span>
-            </button>
+        {/* Step 1: Center Details & Fingerprint Card */}
+        <div className="p-4 bg-slate-950 border border-slate-800 rounded-2xl space-y-3">
+          <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+            <Building2 className="w-3.5 h-3.5 text-teal-400" />
+            <span>Step 1: Your Laboratory Details</span>
           </div>
-          <div className="p-2.5 bg-slate-900 border border-slate-800/80 rounded-xl font-mono text-[11px] text-teal-300 break-all select-all shadow-inner">
-            {fingerprint}
+
+          <div className="grid grid-cols-2 gap-2.5">
+            <div>
+              <label className="block text-[11px] font-medium text-slate-300 mb-1">Center / Lab Name</label>
+              <input
+                type="text"
+                value={centerNameInput}
+                onChange={(e) => setCenterNameInput(e.target.value)}
+                placeholder="e.g. Star Diagnostic Center"
+                className="w-full bg-slate-900 border border-slate-700/80 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-teal-500"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-medium text-slate-300 mb-1">City / Location</label>
+              <input
+                type="text"
+                value={locationInput}
+                onChange={(e) => setLocationInput(e.target.value)}
+                placeholder="e.g. Chennai - Anna Nagar"
+                className="w-full bg-slate-900 border border-slate-700/80 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-teal-500"
+              />
+            </div>
           </div>
-          <p className="text-[10px] text-slate-500">
-            Licenses are bound cryptographically to this workstation's motherboard and Windows Machine GUID.
-          </p>
+
+          <div className="pt-2 border-t border-slate-800/60">
+            <div className="flex items-center justify-between text-xs mb-1.5">
+              <span className="text-slate-400 flex items-center gap-1.5 text-[11px] font-medium">
+                <Cpu className="w-3.5 h-3.5 text-teal-400" />
+                Workstation Hardware Fingerprint:
+              </span>
+            </div>
+            <div className="p-2 bg-slate-900 border border-slate-800 rounded-lg font-mono text-[10px] text-teal-300 break-all select-all">
+              {fingerprint}
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleCopyDetails}
+            className="w-full flex items-center justify-center gap-1.5 text-xs py-2 px-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-teal-300 font-semibold border border-slate-700 transition"
+          >
+            {copiedDetails ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Send className="w-3.5 h-3.5" />}
+            <span>{copiedDetails ? 'Registration Details Copied!' : 'Copy Details to Send to Software Vendor'}</span>
+          </button>
         </div>
 
-        {/* 3-Step Simple Guide */}
-        <div className="p-3 bg-slate-950/50 border border-slate-800/60 rounded-xl space-y-1.5 text-[11px] text-slate-400">
-          <div className="font-semibold text-slate-300 text-xs flex items-center gap-1.5 mb-1">
-            <HelpCircle className="w-3.5 h-3.5 text-teal-400" />
-            <span>How to activate:</span>
+        {/* Step 2: Enter Issued Key */}
+        <form onSubmit={handleActivate} className="space-y-3 pt-1">
+          <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+            <KeyRound className="w-3.5 h-3.5 text-teal-400" />
+            <span>Step 2: Enter Vendor License Key</span>
           </div>
-          <div className="flex items-start gap-2">
-            <span className="w-4 h-4 rounded-full bg-slate-800 text-[10px] font-bold text-teal-400 flex items-center justify-center shrink-0">1</span>
-            <span>Copy your Workstation Hardware Fingerprint above.</span>
-          </div>
-          <div className="flex items-start gap-2">
-            <span className="w-4 h-4 rounded-full bg-slate-800 text-[10px] font-bold text-teal-400 flex items-center justify-center shrink-0">2</span>
-            <span>Provide it to your software vendor via WhatsApp or Email.</span>
-          </div>
-          <div className="flex items-start gap-2">
-            <span className="w-4 h-4 rounded-full bg-slate-800 text-[10px] font-bold text-teal-400 flex items-center justify-center shrink-0">3</span>
-            <span>Paste your issued License Key below and click <strong>Activate Workstation</strong>.</span>
-          </div>
-        </div>
 
-        {/* Activation Form */}
-        <form onSubmit={handleActivate} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-              Enter License Key
-            </label>
             <input
               type="text"
               value={licenseKeyInput}
               onChange={(e) => setLicenseKeyInput(e.target.value.toUpperCase())}
-              placeholder="LAB-XXXX-XXXX-XXXX"
+              placeholder="Paste Key (e.g. LAB-2026-STAR-8F42)"
               required
-              className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-xs text-white font-mono placeholder-slate-600 focus:outline-none focus:border-teal-500 tracking-wider"
+              className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white font-mono placeholder-slate-600 focus:outline-none focus:border-teal-500 tracking-wider text-center font-bold"
             />
           </div>
 
           <button
             type="submit"
             disabled={isSubmitting || !licenseKeyInput.trim()}
-            className="w-full py-3 rounded-xl bg-gradient-to-r from-teal-600 to-teal-500 hover:from-teal-500 hover:to-teal-400 text-white font-bold text-xs shadow-lg shadow-teal-950/60 transition disabled:opacity-50 flex items-center justify-center gap-2"
+            className="w-full py-2.5 rounded-xl bg-gradient-to-r from-teal-600 to-teal-500 hover:from-teal-500 hover:to-teal-400 text-white font-bold text-xs shadow-lg shadow-teal-950/60 transition disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {isSubmitting ? (
               <>
                 <RefreshCw className="w-4 h-4 animate-spin text-white" />
-                <span>Verifying License...</span>
+                <span>Activating Workstation...</span>
               </>
             ) : (
               <>

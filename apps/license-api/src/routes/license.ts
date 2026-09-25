@@ -95,11 +95,14 @@ export const licenseRoutes: FastifyPluginAsync = async (server: FastifyInstance)
 
     const signedToken = signLicensePayload(payload);
 
+    const customer = licenseDb.customers.find((c) => c.id === license.customerId);
+
     return {
       success: true,
       message: 'License activated and bound to this device successfully.',
       license: {
         customerName: license.customerName,
+        customerLocation: customer?.location || '',
         plan: license.plan,
         expiresAt: license.expiresAt,
         offlineGraceUntil,

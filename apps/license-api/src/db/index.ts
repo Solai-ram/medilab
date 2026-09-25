@@ -5,6 +5,7 @@ import crypto from 'node:crypto';
 export interface CustomerRecord {
   id: string;
   name: string;
+  location?: string;
   contactName: string;
   email: string;
   phone: string;
@@ -252,6 +253,12 @@ class LicenseDatabase {
       createdAt: new Date().toISOString(),
     });
     this.persist();
+  }
+
+  addCustomer(customer: CustomerRecord): CustomerRecord {
+    this.state.customers.push(customer);
+    this.persist();
+    return customer;
   }
 
   addLicense(license: LicenseRecord) {

@@ -14,6 +14,9 @@ import {
   XCircle,
   ExternalLink,
   Search,
+  Building2,
+  MapPin,
+  Send,
 } from 'lucide-react';
 
 interface Device {
@@ -43,6 +46,7 @@ interface License {
 interface Customer {
   id: string;
   name: string;
+  location?: string;
   contactName: string;
   email: string;
   phone: string;
@@ -129,12 +133,28 @@ export const App: React.FC = () => {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showAddCustomerModal, setShowAddCustomerModal] = useState(false);
   const [resetModalData, setResetModalData] = useState<{ licenseKey: string; device: Device } | null>(null);
+
+  // New Customer Form
+  const [custName, setCustName] = useState('');
+  const [custLocation, setCustLocation] = useState('');
+  const [custContact, setCustContact] = useState('');
+  const [custPhone, setCustPhone] = useState('');
+  const [custEmail, setCustEmail] = useState('');
+  const [custError, setCustError] = useState('');
 
   // New License Form
   const [newCustomerId, setNewCustomerId] = useState('');
   const [newPlan, setNewPlan] = useState<'MONTHLY' | 'ANNUAL' | 'LIFETIME'>('ANNUAL');
   const [newMaxDevices, setNewMaxDevices] = useState(1);
+  const [newFingerprint, setNewFingerprint] = useState('');
+  const [createdLicenseResult, setCreatedLicenseResult] = useState<{
+    licenseKey: string;
+    customerName: string;
+    plan: string;
+    deviceFingerprint?: string;
+  } | null>(null);
 
   const authHeaders = { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey };
 
@@ -175,7 +195,46 @@ export const App: React.FC = () => {
   const handleCopy = (key: string) => {
     navigator.clipboard.writeText(key);
     setCopiedKey(key);
-    setTimeout(() => setCopiedKey(null), 2000);
+    setTimeout(() => setCopiedKey(null), 2500);
+  };
+
+  const handleCreateCustomer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!custName.trim()) {
+      setCustError('Diagnostic center / laboratory name is required.');
+      return;
+    }
+    setCustError('');
+    try {
+      const res = await fetch(`${API_BASE}/customers`, {
+        method: 'POST',
+        headers: authHeaders,
+        body: JSON.stringify({
+          name: custName.trim(),
+          location: custLocation.trim(),
+          contactName: custContact.trim(),
+          phone: custPhone.trim(),
+          email: custEmail.trim(),
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        await loadData();
+        setNewCustomerId(data.customer.id);
+        setShowAddCustomerModal(false);
+        setCustName('');
+        setCustLocation('');
+        setCustContact('');
+        setCustPhone('');
+        setCustEmail('');
+        setShowCreateModal(true); // Seamlessly proceed to issue license
+      } else {
+        const data = await res.json();
+        setCustError(data.error || 'Failed to add customer.');
+      }
+    } catch {
+      setCustError('Network error adding customer.');
+    }
   };
 
   const handleCreateLicense = async (e: React.FormEvent) => {
@@ -188,11 +247,20 @@ export const App: React.FC = () => {
           customerId: newCustomerId,
           plan: newPlan,
           maxDevices: Number(newMaxDevices),
+          deviceFingerprint: newFingerprint.trim() || undefined,
         }),
       });
       if (res.ok) {
+        const data = await res.json();
         await loadData();
         setShowCreateModal(false);
+        setCreatedLicenseResult({
+          licenseKey: data.license.licenseKey,
+          customerName: data.license.customerName,
+          plan: data.license.plan,
+          deviceFingerprint: newFingerprint.trim() || undefined,
+        });
+        setNewFingerprint('');
       } else {
         console.error('Failed to create license:', await res.text());
       }
@@ -324,6 +392,13 @@ export const App: React.FC = () => {
               />
             </div>
             <button
+              onClick={() => setShowAddCustomerModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-semibold transition"
+            >
+              <Building2 className="w-3.5 h-3.5 text-teal-400" />
+              <span>+ Add Customer Lab</span>
+            </button>
+            <button
               onClick={() => setShowCreateModal(true)}
               className="flex items-center gap-1.5 px-3.5 py-1.5 bg-teal-600 hover:bg-teal-500 text-white rounded-lg text-xs font-semibold shadow transition"
             >
@@ -407,24 +482,50 @@ export const App: React.FC = () => {
             <table className="w-full text-left border-collapse text-xs">
               <thead className="bg-slate-950 border-b border-slate-800 text-slate-400 uppercase text-[10px] font-semibold tracking-wider">
                 <tr>
-                  <th className="py-3 px-4">Laboratory Name</th>
+                  <th className="py-3 px-4">Laboratory / Center Name</th>
+                  <th className="py-3 px-4">Location / City</th>
                   <th className="py-3 px-4">Contact Person</th>
-                  <th className="py-3 px-4">Email</th>
                   <th className="py-3 px-4">Phone</th>
+                  <th className="py-3 px-4">Email</th>
                   <th className="py-3 px-4 text-center">Status</th>
+                  <th className="py-3 px-4 text-right">Quick Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800">
                 {customers.map((c) => (
                   <tr key={c.id} className="hover:bg-slate-800/60 transition">
-                    <td className="py-3 px-4 font-semibold text-slate-100">{c.name}</td>
+                    <td className="py-3 px-4 font-semibold text-slate-100 flex items-center gap-2">
+                      <Building2 className="w-4 h-4 text-teal-400 shrink-0" />
+                      <span>{c.name}</span>
+                    </td>
+                    <td className="py-3 px-4 text-slate-300">
+                      {c.location ? (
+                        <span className="inline-flex items-center gap-1 text-slate-300">
+                          <MapPin className="w-3 h-3 text-slate-500" />
+                          {c.location}
+                        </span>
+                      ) : (
+                        <span className="text-slate-600 italic">—</span>
+                      )}
+                    </td>
                     <td className="py-3 px-4 text-slate-300">{c.contactName}</td>
-                    <td className="py-3 px-4 text-slate-400 font-mono">{c.email}</td>
-                    <td className="py-3 px-4 text-slate-400 font-mono">{c.phone}</td>
+                    <td className="py-3 px-4 text-slate-300 font-mono">{c.phone || '—'}</td>
+                    <td className="py-3 px-4 text-slate-400 font-mono">{c.email || '—'}</td>
                     <td className="py-3 px-4 text-center">
                       <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-950 text-emerald-300 border border-emerald-800">
                         {c.status}
                       </span>
+                    </td>
+                    <td className="py-3 px-4 text-right">
+                      <button
+                        onClick={() => {
+                          setNewCustomerId(c.id);
+                          setShowCreateModal(true);
+                        }}
+                        className="px-2.5 py-1 text-xs font-medium text-teal-300 bg-teal-950/60 border border-teal-800/80 rounded-lg hover:bg-teal-900/60 transition"
+                      >
+                        Issue Key
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -433,6 +534,101 @@ export const App: React.FC = () => {
           </div>
         )}
       </main>
+
+      {/* Add Customer Modal */}
+      {showAddCustomerModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md bg-slate-900 border border-slate-700 rounded-xl p-6 shadow-2xl">
+            <h3 className="text-base font-bold text-white flex items-center gap-2 pb-3 border-b border-slate-800">
+              <Building2 className="w-5 h-5 text-teal-400" />
+              Register New Customer Laboratory
+            </h3>
+
+            <form onSubmit={handleCreateCustomer} className="mt-4 space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Laboratory / Center Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={custName}
+                  onChange={(e) => setCustName(e.target.value)}
+                  placeholder="e.g. Star Diagnostic Center"
+                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">City / Branch Location</label>
+                <input
+                  type="text"
+                  value={custLocation}
+                  onChange={(e) => setCustLocation(e.target.value)}
+                  placeholder="e.g. Chennai - Anna Nagar"
+                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Contact Person</label>
+                  <input
+                    type="text"
+                    value={custContact}
+                    onChange={(e) => setCustContact(e.target.value)}
+                    placeholder="e.g. Dr. Raman"
+                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Phone Number</label>
+                  <input
+                    type="text"
+                    value={custPhone}
+                    onChange={(e) => setCustPhone(e.target.value)}
+                    placeholder="e.g. +91 98765 43210"
+                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-teal-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Email (Optional)</label>
+                <input
+                  type="email"
+                  value={custEmail}
+                  onChange={(e) => setCustEmail(e.target.value)}
+                  placeholder="e.g. contact@stardiagnostics.com"
+                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
+                />
+              </div>
+
+              {custError && (
+                <div className="text-xs text-rose-400 flex items-center gap-1.5">
+                  <AlertCircle className="w-3.5 h-3.5" />
+                  <span>{custError}</span>
+                </div>
+              )}
+
+              <div className="pt-3 flex justify-end gap-2 border-t border-slate-800 mt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowAddCustomerModal(false)}
+                  className="px-3 py-2 text-xs text-slate-400 hover:text-white bg-slate-800 rounded-lg"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 text-xs font-semibold text-white bg-teal-600 hover:bg-teal-500 rounded-lg shadow"
+                >
+                  Save & Issue License ➔
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Create License Modal */}
       {showCreateModal && (
@@ -445,7 +641,19 @@ export const App: React.FC = () => {
 
             <form onSubmit={handleCreateLicense} className="mt-4 space-y-3">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Customer Lab *</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-semibold text-slate-300">Customer Laboratory *</label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowCreateModal(false);
+                      setShowAddCustomerModal(true);
+                    }}
+                    className="text-[11px] text-teal-400 hover:text-teal-300 font-semibold"
+                  >
+                    + New Customer Lab
+                  </button>
+                </div>
                 <select
                   value={newCustomerId}
                   onChange={(e) => setNewCustomerId(e.target.value)}
@@ -453,10 +661,26 @@ export const App: React.FC = () => {
                 >
                   {customers.map((c) => (
                     <option key={c.id} value={c.id}>
-                      {c.name}
+                      {c.name} {c.location ? `(${c.location})` : ''}
                     </option>
                   ))}
                 </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Workstation Hardware Fingerprint (From Client PC)
+                </label>
+                <input
+                  type="text"
+                  value={newFingerprint}
+                  onChange={(e) => setNewFingerprint(e.target.value)}
+                  placeholder="Paste SHA256:... from client screen (Optional)"
+                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white font-mono placeholder-slate-600 focus:outline-none focus:border-teal-500"
+                />
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Paste the fingerprint from the client's screen to bind this license immediately.
+                </p>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -495,7 +719,7 @@ export const App: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 text-xs font-medium text-white bg-teal-600 hover:bg-teal-500 rounded-lg shadow"
+                  className="px-4 py-2 text-xs font-semibold text-white bg-teal-600 hover:bg-teal-500 rounded-lg shadow"
                 >
                   Generate & Issue Key
                 </button>
@@ -535,6 +759,72 @@ export const App: React.FC = () => {
                 className="px-4 py-1.5 text-xs font-semibold text-white bg-amber-600 hover:bg-amber-500 rounded-lg shadow"
               >
                 Confirm Device Reset
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Generated License Result Modal */}
+      {createdLicenseResult && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4">
+          <div className="w-full max-w-lg bg-slate-900 border border-teal-500/40 rounded-2xl p-6 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3 pb-3 border-b border-slate-800">
+              <div className="w-10 h-10 rounded-xl bg-teal-500/20 border border-teal-500/40 flex items-center justify-center text-teal-400">
+                <CheckCircle2 className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">License Successfully Issued!</h3>
+                <p className="text-xs text-slate-400">{createdLicenseResult.customerName} • {createdLicenseResult.plan}</p>
+              </div>
+            </div>
+
+            <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-2">
+              <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">License Activation Key:</div>
+              <div className="flex items-center justify-between bg-slate-900 border border-teal-500/30 rounded-lg px-4 py-3">
+                <span className="font-mono text-base font-bold text-teal-300 select-all">{createdLicenseResult.licenseKey}</span>
+                <button
+                  onClick={() => handleCopy(createdLicenseResult.licenseKey)}
+                  className="flex items-center gap-1 px-3 py-1.5 bg-teal-600 hover:bg-teal-500 text-white rounded-lg text-xs font-semibold transition"
+                >
+                  {copiedKey === createdLicenseResult.licenseKey ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copiedKey === createdLicenseResult.licenseKey ? 'Copied' : 'Copy Key'}</span>
+                </button>
+              </div>
+              {createdLicenseResult.deviceFingerprint && (
+                <div className="text-[11px] text-slate-400 pt-1">
+                  🔒 Pre-Locked to Hardware: <span className="font-mono text-[10px] text-slate-300 break-all">{createdLicenseResult.deviceFingerprint}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Ready WhatsApp / Client Message */}
+            <div className="space-y-1">
+              <div className="text-[11px] font-semibold text-slate-400">Share with Client (WhatsApp / Email):</div>
+              <textarea
+                readOnly
+                rows={3}
+                value={`Hello ${createdLicenseResult.customerName},\nYour MediLab Commercial License is ready!\nLicense Key: ${createdLicenseResult.licenseKey}\nPlan: ${createdLicenseResult.plan}\nEnter this key on your computer to activate MediLab.`}
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-xs font-mono text-slate-300 focus:outline-none select-all"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                onClick={() => {
+                  const text = `Hello ${createdLicenseResult.customerName},\nYour MediLab Commercial License is ready!\nLicense Key: ${createdLicenseResult.licenseKey}\nPlan: ${createdLicenseResult.plan}\nEnter this key on your computer to activate MediLab.`;
+                  navigator.clipboard.writeText(text);
+                  handleCopy('msg');
+                }}
+                className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-semibold transition"
+              >
+                <Send className="w-3.5 h-3.5 text-teal-400" />
+                <span>{copiedKey === 'msg' ? 'Message Copied!' : 'Copy Client Message'}</span>
+              </button>
+              <button
+                onClick={() => setCreatedLicenseResult(null)}
+                className="px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white rounded-lg text-xs font-semibold shadow transition"
+              >
+                Done
               </button>
             </div>
           </div>
