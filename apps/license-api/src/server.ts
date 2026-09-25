@@ -103,6 +103,6 @@ async function start() {
 }
 
 // Run server only if executed directly
-if (process.argv[1] && process.argv[1].endsWith('server.js')) {
+if (process.argv[1] && (process.argv[1].endsWith('server.js') || process.argv[1].endsWith('server.ts') || process.argv[1].includes('server'))) {
   start();
 }

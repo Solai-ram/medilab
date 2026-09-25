@@ -57,6 +57,9 @@ desktop.ini
 *.key
 *.p12
 *.pfx
+*.keys.json
+.keys.json
+apps/license-api/data/
 
 # Tauri generated bundles
 **/src-tauri/target/release/bundle/
