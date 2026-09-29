@@ -202,9 +202,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSettings
   };
 
   return (
-    <div className="h-full flex flex-col overflow-hidden bg-slate-950 p-4 gap-4">
+    <div className="h-full flex flex-col overflow-hidden bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 p-4 gap-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800/80 flex items-center justify-between shadow-sm shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-teal-500/20 border border-teal-500/40 flex items-center justify-center text-teal-400">
             <Settings className="w-5 h-5" />

@@ -23,6 +23,7 @@ exports/
 dist/
 build/
 out/
+dist-installers/
 
 # Tauri / Rust
 **/src-tauri/target/

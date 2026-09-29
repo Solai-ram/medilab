@@ -84,17 +84,22 @@ html.light body {
 }
 
 /* Surfaces & Containers */
-html.light .bg-slate-950 {
-  background-color: #f1f5f9 !important;
-}
-
+html.light .bg-slate-950,
+html.light .bg-slate-950\/95,
+html.light .bg-slate-950\/90,
 html.light .bg-slate-950\/80,
 html.light .bg-slate-950\/70,
-html.light .bg-slate-950\/60 {
+html.light .bg-slate-950\/60,
+html.light .bg-slate-950\/50,
+html.light .bg-slate-950\/40,
+html.light .bg-slate-950\/30,
+html.light .bg-slate-950\/20,
+html.light .bg-slate-950\/10 {
   background-color: #f8fafc !important;
 }
 
-html.light .bg-gradient-to-b.from-slate-950.via-slate-900.to-slate-950 {
+html.light .bg-gradient-to-b.from-slate-950.via-slate-900.to-slate-950,
+html.light .bg-gradient-to-b.from-slate-950.to-slate-900 {
   background: #f8fafc !important;
 }
 
@@ -117,6 +122,7 @@ html.light .sidebar-panel {
 }
 
 html.light .sidebar-panel .bg-slate-950,
+html.light .sidebar-panel .bg-slate-950\/95,
 html.light .sidebar-panel .bg-slate-950\/90,
 html.light .sidebar-panel .bg-slate-950\/80 {
   background-color: #ffffff !important;
@@ -171,10 +177,40 @@ html.light .calendar-picker-popover .bg-teal-950\/60 {
 }
 
 html.light .bg-slate-900,
+html.light .bg-slate-900\/95,
 html.light .bg-slate-900\/90,
-html.light .bg-slate-900\/80 {
+html.light .bg-slate-900\/80,
+html.light .bg-slate-900\/70,
+html.light .bg-slate-900\/60,
+html.light .bg-slate-900\/50,
+html.light .bg-slate-900\/40,
+html.light .bg-slate-900\/30,
+html.light .bg-slate-900\/20,
+html.light .bg-slate-900\/10 {
   background-color: #ffffff !important;
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05) !important;
+}
+
+html.light .bg-slate-800,
+html.light .bg-slate-800\/95,
+html.light .bg-slate-800\/90,
+html.light .bg-slate-800\/80,
+html.light .bg-slate-800\/70,
+html.light .bg-slate-800\/60,
+html.light .bg-slate-800\/50,
+html.light .bg-slate-800\/40,
+html.light .bg-slate-800\/30,
+html.light .bg-slate-800\/20,
+html.light .bg-slate-800\/10 {
+  background-color: #f1f5f9 !important;
+}
+
+html.light .bg-slate-700,
+html.light .bg-slate-700\/90,
+html.light .bg-slate-700\/80,
+html.light .bg-slate-700\/60,
+html.light .bg-slate-700\/50 {
+  background-color: #e2e8f0 !important;
 }
 
 html.light .glass-card {
@@ -185,15 +221,37 @@ html.light .glass-card {
 
 /* Borders & Dividers */
 html.light .border-slate-800,
+html.light .border-slate-800\/95,
 html.light .border-slate-800\/90,
 html.light .border-slate-800\/80,
+html.light .border-slate-800\/70,
+html.light .border-slate-800\/60,
+html.light .border-slate-800\/50,
+html.light .border-slate-800\/40,
+html.light .border-slate-800\/30,
+html.light .border-slate-800\/20,
 html.light .border-slate-700,
-html.light .border-slate-700\/80 {
+html.light .border-slate-700\/95,
+html.light .border-slate-700\/90,
+html.light .border-slate-700\/80,
+html.light .border-slate-700\/70,
+html.light .border-slate-700\/60,
+html.light .border-slate-700\/50,
+html.light .border-slate-700\/40,
+html.light .border-slate-600 {
   border-color: #e2e8f0 !important;
 }
 
 html.light .divide-slate-800 > :not([hidden]) ~ :not([hidden]),
-html.light .divide-slate-800\/80 > :not([hidden]) ~ :not([hidden]) {
+html.light .divide-slate-800\/90 > :not([hidden]) ~ :not([hidden]),
+html.light .divide-slate-800\/80 > :not([hidden]) ~ :not([hidden]),
+html.light .divide-slate-800\/70 > :not([hidden]) ~ :not([hidden]),
+html.light .divide-slate-800\/60 > :not([hidden]) ~ :not([hidden]),
+html.light .divide-slate-800\/50 > :not([hidden]) ~ :not([hidden]),
+html.light .divide-slate-800\/40 > :not([hidden]) ~ :not([hidden]),
+html.light .divide-slate-700 > :not([hidden]) ~ :not([hidden]),
+html.light .divide-slate-700\/80 > :not([hidden]) ~ :not([hidden]),
+html.light .divide-slate-700\/60 > :not([hidden]) ~ :not([hidden]) {
   border-color: #f1f5f9 !important;
 }
 
@@ -382,14 +440,22 @@ html.light button.bg-slate-800:hover {
 }
 
 /* Fix table and inline buttons dark flash on hover */
+html.light .hover\:bg-slate-900:hover,
+html.light .hover\:bg-slate-900\/90:hover,
+html.light .hover\:bg-slate-900\/80:hover,
+html.light .hover\:bg-slate-900\/70:hover,
+html.light .hover\:bg-slate-900\/60:hover,
+html.light .hover\:bg-slate-900\/40:hover,
 html.light .hover\:bg-slate-800:hover,
+html.light .hover\:bg-slate-800\/90:hover,
 html.light .hover\:bg-slate-800\/80:hover,
 html.light .hover\:bg-slate-800\/60:hover,
 html.light .hover\:bg-slate-800\/40:hover {
   background-color: #f1f5f9 !important;
 }
 
-html.light button.hover\:bg-slate-800:hover {
+html.light button.hover\:bg-slate-800:hover,
+html.light button.hover\:bg-slate-900:hover {
   background-color: #e2e8f0 !important;
   color: #0f172a !important;
 }

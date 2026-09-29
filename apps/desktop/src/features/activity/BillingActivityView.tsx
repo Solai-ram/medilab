@@ -266,9 +266,9 @@ export const BillingActivityView: React.FC<BillingActivityViewProps> = ({
   };
 
   return (
-    <div className="h-full flex flex-col overflow-hidden bg-slate-950 text-slate-100 select-none">
+    <div className="h-full flex flex-col overflow-hidden bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 p-4 gap-3 text-slate-100 select-none">
       {/* 1. Header Toolbar */}
-      <div className="h-16 px-6 border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md flex items-center justify-between shrink-0">
+      <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800/80 flex items-center justify-between shadow-sm shrink-0">
         <div className="flex items-center gap-3.5">
           <div className="w-10 h-10 rounded-xl bg-teal-500/10 border border-teal-500/30 flex items-center justify-center text-teal-400 shadow-inner">
             <Receipt className="w-5 h-5 text-teal-300" />
@@ -326,9 +326,9 @@ export const BillingActivityView: React.FC<BillingActivityViewProps> = ({
       </div>
 
       {/* 2. Top KPI Metrics Ribbon */}
-      <div className="px-6 py-3 border-b border-slate-800/60 bg-slate-950/80 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 shrink-0">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 shrink-0">
         {/* Total Volume */}
-        <div className="p-3 rounded-xl bg-slate-900/70 border border-slate-800/80 flex items-center justify-between shadow-sm">
+        <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800/80 flex items-center justify-between shadow-sm">
           <div>
             <div className="text-[10px] font-mono uppercase tracking-wider text-slate-400">Total Billed</div>
             <div className="text-base font-extrabold text-teal-400 mt-0.5">
@@ -344,7 +344,7 @@ export const BillingActivityView: React.FC<BillingActivityViewProps> = ({
         </div>
 
         {/* Cash Collections */}
-        <div className="p-3 rounded-xl bg-slate-900/70 border border-slate-800/80 flex items-center justify-between shadow-sm">
+        <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800/80 flex items-center justify-between shadow-sm">
           <div>
             <div className="text-[10px] font-mono uppercase tracking-wider text-slate-400">Cash Counter</div>
             <div className="text-base font-extrabold text-emerald-400 mt-0.5">
@@ -358,7 +358,7 @@ export const BillingActivityView: React.FC<BillingActivityViewProps> = ({
         </div>
 
         {/* UPI / QR Collections */}
-        <div className="p-3 rounded-xl bg-slate-900/70 border border-slate-800/80 flex items-center justify-between shadow-sm">
+        <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800/80 flex items-center justify-between shadow-sm">
           <div>
             <div className="text-[10px] font-mono uppercase tracking-wider text-slate-400">UPI / QR Pay</div>
             <div className="text-base font-extrabold text-sky-400 mt-0.5">
@@ -372,7 +372,7 @@ export const BillingActivityView: React.FC<BillingActivityViewProps> = ({
         </div>
 
         {/* Card Collections */}
-        <div className="p-3 rounded-xl bg-slate-900/70 border border-slate-800/80 flex items-center justify-between shadow-sm">
+        <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800/80 flex items-center justify-between shadow-sm">
           <div>
             <div className="text-[10px] font-mono uppercase tracking-wider text-slate-400">Card / POS</div>
             <div className="text-base font-extrabold text-purple-400 mt-0.5">
@@ -386,7 +386,7 @@ export const BillingActivityView: React.FC<BillingActivityViewProps> = ({
         </div>
 
         {/* Cancelled Bills */}
-        <div className="p-3 rounded-xl bg-slate-900/70 border border-slate-800/80 flex items-center justify-between shadow-sm">
+        <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800/80 flex items-center justify-between shadow-sm">
           <div>
             <div className="text-[10px] font-mono uppercase tracking-wider text-rose-400">Cancelled / Void</div>
             <div className="text-base font-extrabold text-rose-400 mt-0.5">
@@ -403,7 +403,7 @@ export const BillingActivityView: React.FC<BillingActivityViewProps> = ({
       </div>
 
       {/* 3. Filter & Search Bar */}
-      <div className="px-6 py-3 border-b border-slate-800/80 bg-slate-900/40 flex flex-wrap items-center justify-between gap-3 shrink-0">
+      <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800/80 flex flex-wrap items-center justify-between gap-3 shadow-sm shrink-0">
         {/* Left: Quick Timeframe Presets & CalendarPicker */}
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center p-1 bg-slate-950/80 border border-slate-800/80 rounded-xl">
@@ -502,17 +502,17 @@ export const BillingActivityView: React.FC<BillingActivityViewProps> = ({
       </div>
 
       {/* 4. Table / Feed of Invoices */}
-      <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4">
+      <div className="flex-1 min-h-0 overflow-y-auto">
         {isLoading ? (
-          <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-2">
+          <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-2 bg-slate-900/90 border border-slate-800/80 rounded-2xl shadow-sm">
             <RotateCcw className="w-6 h-6 animate-spin text-teal-400" />
             <span className="text-xs font-mono">Loading billing records...</span>
           </div>
         ) : filteredBills.length === 0 ? (
-          <div className="h-72 flex flex-col items-center justify-center text-center p-6 border-2 border-dashed border-slate-800 rounded-2xl bg-slate-900/20">
-            <Receipt className="w-10 h-10 text-slate-600 mb-2" />
-            <h3 className="text-sm font-bold text-slate-300">No Billing Activities Found</h3>
-            <p className="text-xs text-slate-500 mt-1 max-w-sm">
+          <div className="h-72 flex flex-col items-center justify-center text-center p-6 border-2 border-dashed border-slate-700/80 rounded-2xl bg-slate-900/90 shadow-sm">
+            <Receipt className="w-10 h-10 text-slate-500 mb-2" />
+            <h3 className="text-sm font-bold text-slate-200">No Billing Activities Found</h3>
+            <p className="text-xs text-slate-400 mt-1 max-w-sm">
               {searchQuery || customDate || statusFilter !== 'ALL' || paymentModeFilter !== 'ALL'
                 ? 'No invoices match your selected search criteria or date filters.'
                 : 'No invoices have been billed for this period yet.'}
@@ -537,7 +537,7 @@ export const BillingActivityView: React.FC<BillingActivityViewProps> = ({
             </div>
           </div>
         ) : (
-          <div className="bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+          <div className="bg-slate-900/90 border border-slate-800/80 rounded-2xl overflow-hidden shadow-xl">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-slate-800 bg-slate-950/80 text-[11px] font-mono uppercase tracking-wider text-slate-400">

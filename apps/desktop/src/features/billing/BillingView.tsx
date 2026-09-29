@@ -11,7 +11,6 @@ import {
 } from '@lab/shared-types';
 import { calculateBillSummary, formatCurrency } from '@lab/billing-engine';
 import { InvoiceModal } from '../invoice/InvoiceModal';
-import QRCode from 'qrcode';
 import {
   Search,
   Plus,
@@ -76,10 +75,7 @@ export const BillingView: React.FC<BillingViewProps> = ({ settings, initialPatie
   const [paymentMode, setPaymentMode] = useState<PaymentMode>('CASH');
   const [paidAmount, setPaidAmount] = useState<number>(0);
   const [paymentRef, setPaymentRef] = useState('');
-  const [showQrPreview, setShowQrPreview] = useState(false);
-  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('');
   const [copiedMobile, setCopiedMobile] = useState<string | null>(null);
-  const [copiedUpi, setCopiedUpi] = useState(false);
 
   // UI / Status State
   const [recentBills, setRecentBills] = useState<Bill[]>([]);
@@ -151,25 +147,6 @@ export const BillingView: React.FC<BillingViewProps> = ({ settings, initialPatie
     setPaidAmount(calcSummary.grandTotal);
   }, [calcSummary.grandTotal]);
 
-  // Generate Dynamic UPI QR Code for instant counter scanning
-  useEffect(() => {
-    if (calcSummary.grandTotal > 0) {
-      const upiVpa = 'medilab@icici';
-      const upiUrl = `upi://pay?pa=${encodeURIComponent(upiVpa)}&pn=${encodeURIComponent(settings.labName || 'MediLab Diagnostics')}&am=${calcSummary.grandTotal.toFixed(2)}&cu=INR&tn=${encodeURIComponent('Diagnostic Test Fee')}`;
-      QRCode.toDataURL(upiUrl, {
-        width: 260,
-        margin: 1,
-        color: {
-          dark: '#020617',
-          light: '#ffffff',
-        },
-      })
-        .then(setQrCodeDataUrl)
-        .catch(console.error);
-    } else {
-      setQrCodeDataUrl('');
-    }
-  }, [calcSummary.grandTotal, settings.labName]);
 
   // Escape key to dismiss dropdowns
   useEffect(() => {
@@ -760,35 +737,19 @@ export const BillingView: React.FC<BillingViewProps> = ({ settings, initialPatie
                   </button>
                 </div>
 
-                {/* UPI QR Trigger & Reference Input */}
+                {/* UPI Reference Input */}
                 {paymentMode === 'UPI' && (
-                  <div className="pt-1.5 space-y-2 animate-in fade-in duration-150">
-                    <button
-                      type="button"
-                      onClick={() => setShowQrPreview(true)}
-                      className="w-full flex items-center justify-between px-3 py-2 bg-gradient-to-r from-teal-950 via-slate-900 to-slate-950 border border-teal-600/50 hover:border-teal-400 rounded-xl text-xs text-teal-300 font-bold transition shadow group"
-                    >
-                      <div className="flex items-center gap-2">
-                        <QrCode className="w-4 h-4 text-teal-400 group-hover:scale-110 transition" />
-                        <span>Display Counter UPI QR</span>
-                      </div>
-                      <span className="font-mono text-emerald-400 text-[11px]">
-                        {formatCurrency(calcSummary.grandTotal)}
-                      </span>
-                    </button>
-
-                    <div>
-                      <label className="block text-[11px] text-slate-400 mb-1">
-                        UPI UTR / Bank Reference No. (Optional)
-                      </label>
-                      <input
-                        type="text"
-                        value={paymentRef}
-                        onChange={(e) => setPaymentRef(e.target.value)}
-                        placeholder="e.g. 6253819082"
-                        className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-teal-500 font-mono shadow-inner"
-                      />
-                    </div>
+                  <div className="pt-1 animate-in fade-in duration-150">
+                    <label className="block text-[11px] text-slate-400 mb-1">
+                      UPI UTR / Bank Reference No. (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      value={paymentRef}
+                      onChange={(e) => setPaymentRef(e.target.value)}
+                      placeholder="e.g. 6253819082"
+                      className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-teal-500 font-mono shadow-inner"
+                    />
                   </div>
                 )}
 
@@ -949,17 +910,6 @@ export const BillingView: React.FC<BillingViewProps> = ({ settings, initialPatie
         isReprint={isInvoiceReprint}
       />
 
-      {/* Dynamic Counter UPI QR Modal */}
-      {showQrPreview && (
-        <UpiCounterQrModal
-          isOpen={showQrPreview}
-          onClose={() => setShowQrPreview(false)}
-          qrDataUrl={qrCodeDataUrl}
-          amount={calcSummary.grandTotal}
-          labName={settings.labName}
-          upiId="medilab@icici"
-        />
-      )}
 
       {/* Bill Cancellation Reason Modal */}
       {cancellingBill && (
@@ -1004,103 +954,6 @@ export const BillingView: React.FC<BillingViewProps> = ({ settings, initialPatie
   );
 };
 
-// Counter Dynamic UPI QR Modal
-interface UpiCounterQrModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  qrDataUrl: string;
-  amount: number;
-  labName: string;
-  upiId: string;
-}
-
-const UpiCounterQrModal: React.FC<UpiCounterQrModalProps> = ({
-  isOpen,
-  onClose,
-  qrDataUrl,
-  amount,
-  labName,
-  upiId,
-}) => {
-  const [copied, setCopied] = useState(false);
-
-  if (!isOpen) return null;
-
-  const handleCopyLink = () => {
-    const link = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(labName)}&am=${amount.toFixed(2)}&cu=INR`;
-    navigator.clipboard.writeText(link);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-in fade-in duration-150">
-      <div className="w-full max-w-sm bg-slate-900 border border-slate-700/90 rounded-3xl shadow-2xl p-6 flex flex-col items-center text-center relative overflow-hidden">
-        {/* Glow Accent */}
-        <div className="absolute -top-16 -left-16 w-36 h-36 bg-teal-500/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-16 -right-16 w-36 h-36 bg-emerald-500/20 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="w-10 h-10 rounded-2xl bg-teal-500/20 border border-teal-500/40 flex items-center justify-center text-teal-400 mb-3 shadow-md">
-          <QrCode className="w-5 h-5" />
-        </div>
-
-        <h3 className="text-base font-extrabold text-white tracking-wide">{labName || 'MediLab Diagnostics'}</h3>
-        <p className="text-[11px] text-slate-400 mt-0.5">UPI Counter Direct Instant Payment</p>
-
-        {/* Hero Amount */}
-        <div className="my-3 py-2 px-5 rounded-2xl bg-slate-950 border border-teal-500/30 text-center shadow-inner">
-          <div className="text-[10px] font-bold text-teal-400 uppercase tracking-widest">Payable Amount</div>
-          <div className="text-2xl font-extrabold font-mono text-emerald-400 mt-0.5">
-            {formatCurrency(amount)}
-          </div>
-        </div>
-
-        {/* QR Canvas Box */}
-        <div className="p-3 bg-white rounded-2xl shadow-xl border-4 border-slate-800 my-2">
-          {qrDataUrl ? (
-            <img src={qrDataUrl} alt="UPI QR Code" className="w-48 h-48 rounded-lg" />
-          ) : (
-            <div className="w-48 h-48 flex items-center justify-center text-slate-400 text-xs">
-              Generating QR...
-            </div>
-          )}
-        </div>
-
-        <div className="text-xs text-slate-300 font-mono mt-1">
-          UPI ID: <span className="font-bold text-teal-300">{upiId}</span>
-        </div>
-
-        {/* App badges */}
-        <div className="flex items-center justify-center gap-1.5 mt-2.5 text-[10px] text-slate-400 font-medium">
-          <span className="px-2 py-0.5 rounded-md bg-slate-950 border border-slate-800">GPay</span>
-          <span className="px-2 py-0.5 rounded-md bg-slate-950 border border-slate-800">PhonePe</span>
-          <span className="px-2 py-0.5 rounded-md bg-slate-950 border border-slate-800">Paytm</span>
-          <span className="px-2 py-0.5 rounded-md bg-slate-950 border border-slate-800">BHIM</span>
-        </div>
-
-        {/* Actions */}
-        <div className="w-full grid grid-cols-2 gap-2 mt-5 pt-3 border-t border-slate-800">
-          <button
-            type="button"
-            onClick={handleCopyLink}
-            className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition"
-          >
-            {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-            <span>{copied ? 'Copied Link' : 'Copy Link'}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="py-2 px-3 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white text-xs font-bold transition shadow-md"
-          >
-            Payment Received
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 // Inline New Patient Modal
 interface NewPatientInlineModalProps {
